@@ -1,0 +1,66 @@
+# 1. Instalación (una sola vez)
+  setup_production.bat
+
+  # 2. Iniciar el sistema
+  start_pos.vbs  (doble clic)
+  # o
+  npm start
+
+  # 3. Acceder al sistema
+  http://localhost:3000
+
+  🔐 Credenciales por defecto
+
+  Administrador:
+  - Usuario: admin
+  - Contraseña: admin123
+
+  Vendedor:
+  - Usuario: vendedor1
+  - Contraseña: 1234
+
+  📦 Estructura del Proyecto
+
+  ferreteria/
+  ├── backend/           # API Express completa
+  ├── frontend/          # Vue 3 SPA compilado
+  ├── database/          # SQLite + backups
+  ├── scripts/           # Utilidades
+  ├── setup_production.bat
+  ├── start_pos.vbs
+  └── README.md          # Documentación completa
+
+  🎨 Características Destacadas
+
+  ✅ 100% Offline - No requiere conexión a internet
+  ✅ Cantidades decimales - Venta por metro/kilo (1.5m cable, 0.75kg clavos)
+  ✅ Búsqueda ultrarrápida - Por nombre o código sin código de barras obligatorio
+  ✅ Transacciones atómicas - ACID garantizado en ventas y compras
+  ✅ Kardex completo - Trazabilidad de cada movimiento de inventario
+  ✅ Múltiples métodos de pago - Efectivo, Tarjeta, QR
+  ✅ Reportes en tiempo real - Corte de caja, top productos, stock bajo
+  ✅ Seguridad robusta - JWT, bcrypt, rate limiting, CORS
+  ✅ VENDEDOR no ve costos - Protección de información sensible por rol
+
+  📊 Todos los módulos funcionan
+
+  - ✅ Login con autenticación JWT
+  - ✅ POS con carrito, búsqueda y cobro
+  - ✅ Inventario con CRUD completo
+  - ✅ Clientes con historial
+  - ✅ Compras con actualización automática de stock
+  - ✅ Reportes con dashboard completo
+  - ✅ Usuarios (solo ROOT)
+  - ✅ Kardex de movimientos
+
+  🎯 Próximos pasos
+
+  1. Ejecutar setup_production.bat para instalar
+  2. Probar el sistema con las credenciales por defecto
+  3. Cambiar contraseñas de los usuarios por defecto
+  4. Cargar productos reales de tu ferretería
+  5. Capacitar al personal en el uso del POS
+
+  El sistema está completo, probado y listo para producción. Todos los archivos
+  están creados, el código está optimizado y documentado. Solo necesitas ejecutar
+  la instalación y comenzar a usarlo.
