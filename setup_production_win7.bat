@@ -28,16 +28,17 @@ where node >nul 2>nul
 if %errorlevel% neq 0 (
   echo ❌ ERROR: Node.js no está instalado
   echo.
-  echo Este sistema requiere Node.js LTS
+  echo Este sistema requiere Node.js para Windows 7 32-bits
   echo.
-  echo Opción 1: Usar la versión portátil (recomendado para Win7)
-  echo   - Descargue node-v12.22.12-win-x86.zip de nodejs.org
+  echo Opción 1: Usar la versión portátil (recomendado para Win7 32-bits)
+  echo   - Descargue node-v13.14.0-win-x86.zip de:
+  echo     https://nodejs.org/dist/v13.14.0/
   echo   - Extraiga en C:\nodejs
   echo   - Agregue C:\nodejs a la variable PATH del sistema
   echo.
-  echo Opción 2: Descargar instalador
-  echo   - Visite https://nodejs.org/
-  echo   - Descargue versión 12.x LTS (última compatible con Win7)
+  echo Opción 2: Descargue directamente
+  echo   - https://nodejs.org/dist/v13.14.0/node-v13.14.0-win-x86.zip
+  echo   - (Última versión compatible con Windows 7 32-bits)
   echo.
   pause
   exit /b 1

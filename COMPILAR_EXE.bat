@@ -56,7 +56,7 @@ echo 🔨 Compilando ejecutable (esto toma 2-5 minutos)...
 echo    Destino: Windows 7 32-bits
 echo.
 
-call npx pkg . --target node18-win-x86 --compress Brotli --output dist\ferreteria-app.exe
+call npx pkg . --target node13-win-x86 --compress Brotli --output dist\ferreteria-app.exe
 
 if %errorlevel% neq 0 (
   echo ❌ Error en compilación

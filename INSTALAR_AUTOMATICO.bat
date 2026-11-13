@@ -29,7 +29,7 @@ if not exist "node_portable" mkdir node_portable
 REM Descargar Node.js portátil automáticamente si no existe
 if not exist "node_portable\node.exe" (
   echo.
-  echo 📥 Descargando Node.js v12 (compatible Windows 7 32-bits)...
+  echo 📥 Descargando Node.js v13.14.0 (compatible Windows 7 32-bits)...
   echo    Esto puede tomar 2-3 minutos según su conexión...
   echo.
 
@@ -37,8 +37,8 @@ if not exist "node_portable\node.exe" (
   powershell -Command "
     try {
       [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-      $url = 'https://nodejs.org/dist/v12.22.12/node-v12.22.12-win-x86.zip'
-      $output = '%SCRIPT_DIR%node-v12.zip'
+      $url = 'https://nodejs.org/dist/v13.14.0/node-v13.14.0-win-x86.zip'
+      $output = '%SCRIPT_DIR%node-v13.zip'
 
       Write-Host 'Descargando desde: ' $url
       (New-Object System.Net.WebClient).DownloadFile($url, $output)
@@ -50,13 +50,13 @@ if not exist "node_portable\node.exe" (
       [System.IO.Compression.ZipFile]::ExtractToDirectory($output, '%SCRIPT_DIR%node_temp')
 
       REM Mover a carpeta final
-      Move-Item '%SCRIPT_DIR%node_temp\node-v12.22.12-win-x86\*' '%SCRIPT_DIR%node_portable\'
+      Move-Item '%SCRIPT_DIR%node_temp\node-v13.14.0-win-x86\*' '%SCRIPT_DIR%node_portable\'
 
       REM Limpiar temporales
       Remove-Item '%SCRIPT_DIR%node_temp' -Recurse -Force
       Remove-Item $output -Force
 
-      Write-Host 'Node.js instalado exitosamente'
+      Write-Host 'Node.js v13.14.0 instalado exitosamente'
     } catch {
       Write-Host 'Error en descarga: ' $_
       exit 1
@@ -68,7 +68,7 @@ if not exist "node_portable\node.exe" (
     echo ❌ Error al descargar Node.js
     echo.
     echo Opción manual:
-    echo   1. Descargue: https://nodejs.org/dist/v12.22.12/node-v12.22.12-win-x86.zip
+    echo   1. Descargue: https://nodejs.org/dist/v13.14.0/node-v13.14.0-win-x86.zip
     echo   2. Extraiga en carpeta: node_portable
     echo   3. Ejecute este script nuevamente
     echo.

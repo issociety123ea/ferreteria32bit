@@ -34,15 +34,18 @@ where node >nul 2>nul
 if %errorlevel% neq 0 (
   echo ❌ ERROR: Node.js no está instalado
   echo.
-  echo SOLUCIÓN RÁPIDA (copie y pegue esto en navegador):
-  echo   https://nodejs.org/en/download/package-manager/
+  echo PARA WINDOWS 7 32-BITS - SOLUCIÓN RÁPIDA:
   echo.
-  echo Descargue "node-v12.22.12-win-x86.zip"
-  echo Extraiga en cualquier carpeta
-  echo Agregue esa carpeta a "Variables de entorno" en PATH
+  echo Opción 1 - Versión portátil (recomendado):
+  echo   1. Descargue: https://nodejs.org/dist/v13.14.0/node-v13.14.0-win-x86.zip
+  echo   2. Extraiga en C:\nodejs
+  echo   3. Agregue C:\nodejs a "Variables de entorno" en PATH
   echo.
-  echo O descargue el instalador de:
-  echo   https://nodejs.org/dist/v12.22.12/node-v12.22.12-x86.msi
+  echo Opción 2 - Instalador MSI:
+  echo   1. Descargue: https://nodejs.org/dist/v13.14.0/node-v13.14.0-x86.msi
+  echo   2. Ejecute el instalador
+  echo.
+  echo Nota: v13.14.0 es la última versión compatible con Windows 7 32-bits
   echo.
   pause
   exit /b 1
