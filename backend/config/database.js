@@ -20,7 +20,7 @@ const dbConnection = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
-// Performance optimizations & Schema initialization in SERIAL mode
+// Performance optimizations & Schema initialization
 dbConnection.configure('busyTimeout', 5000);
 dbConnection.serialize(() => {
   dbConnection.run('PRAGMA journal_mode = WAL');
@@ -37,21 +37,35 @@ dbConnection.serialize(() => {
     }
 
     if (!row) {
-      console.log('[DB] Inicializando esquema de base de datos en orden serial...');
+      console.log('[DB] Inicializando base de datos completa...');
       try {
         const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
-        const statements = schema.split(';').map(s => s.trim()).filter(s => s.length > 0);
 
-        // Run statements one by one sequentially
-        dbConnection.serialize(() => {
-          statements.forEach((statement) => {
-            dbConnection.run(statement + ';', (err) => {
-              if (err) {
-                console.error('[DB] Error en sentencia SQL:', err.message);
+        dbConnection.exec(schema, (err) => {
+          if (err) {
+            console.error('[DB] Error crítico al crear esquema:', err.message);
+          } else {
+            console.log('[DB] Tablas y triggers creados exitosamente.');
+
+            // Insertar usuario administrador por defecto (admin / admin123)
+            const bcrypt = require('bcryptjs');
+            const adminHash = bcrypt.hashSync('admin123', 10);
+            const vendHash = bcrypt.hashSync('1234', 10);
+
+            dbConnection.run(`
+              INSERT OR IGNORE INTO usuarios (id, nombre, username, password_hash, rol)
+              VALUES (1, 'Administrador', 'admin', ?, 'ROOT')
+            `, [adminHash]);
+
+            dbConnection.run(`
+              INSERT OR IGNORE INTO usuarios (id, nombre, username, password_hash, rol)
+              VALUES (2, 'Vendedor 1', 'vendedor1', ?, 'VENDEDOR')
+            `, [vendHash], (err) => {
+              if (!err) {
+                console.log('[DB] Usuarios por defecto creados (admin / admin123).');
               }
             });
-          });
-          console.log('[DB] Esquema creado exitosamente.');
+          }
         });
       } catch (e) {
         console.error('[DB] Error al leer schema.sql:', e);
