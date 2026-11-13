@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Ferretería POS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    header { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    h1 { color: #667eea; }
+    button { padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #dc2626; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+    .card h2 { color: #667eea; margin-bottom: 10px; }
+    .card p { color: #6b7280; font-size: 14px; margin-bottom: 15px; }
+    .card a { display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; }
+    .card a:hover { background: #5568d3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Ferretería POS</h1>
+        <p id="userInfo">Usuario: <span id="username">...</span></p>
+      </div>
+      <button onclick="logout()">Cerrar Sesión</button>
+    </header>
+    <div class="grid">
+      <div class="card">
+        <h2>POS (Ventas)</h2>
+        <p>Punto de venta y cobro</p>
+        <a href="/pos.html">Abrir POS</a>
+      </div>
+      <div class="card">
+        <h2>Inventario</h2>
+        <p>Gestión de productos y stock</p>
+        <a href="/inventory.html">Ver Inventario</a>
+      </div>
+    </div>
+  </div>
+  <script>
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!user.id) { window.location.href = '/login.html'; }
+    else { document.getElementById('username').textContent = user.usuario || 'Usuario'; }
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login.html';
+    }
+  </script>
+</body>
+</html>
