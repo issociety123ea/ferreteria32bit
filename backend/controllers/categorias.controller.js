@@ -1,6 +1,6 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const categorias = await db.prepare('SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre ASC').all();
     res.json({ success: true, data: categorias });
@@ -10,7 +10,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { nombre, descripcion } = req.body;
 
@@ -35,7 +35,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const update = async (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, descripcion, activo } = req.body;
@@ -66,3 +66,6 @@ export const update = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al actualizar la categoría' });
   }
 };
+
+
+module.exports = { getAll, create, update };

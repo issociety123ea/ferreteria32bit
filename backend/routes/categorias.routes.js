@@ -1,11 +1,11 @@
-import express from 'express';
-import * as categoriasController from '../controllers/categorias.controller.js';
-import { authenticateToken, isAdmin } from '../middleware/auth.js';
+const express = require('express');
+const { getAll, create, update } = require('../controllers/categorias.controller.js');
+const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, categoriasController.getAll);
-router.post('/', authenticateToken, isAdmin, categoriasController.create);
-router.put('/:id', authenticateToken, isAdmin, categoriasController.update);
+router.get('/', authenticateToken, getAll);
+router.post('/', authenticateToken, isAdmin, create);
+router.put('/:id', authenticateToken, isAdmin, update);
 
-export default router;
+module.exports = router;

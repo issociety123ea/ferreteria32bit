@@ -1,6 +1,6 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const proveedores = await db.prepare('SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre ASC').all();
     res.json({ success: true, data: proveedores });
@@ -10,7 +10,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const getById = async (req, res) => {
+const getById = async (req, res) => {
   try {
     const proveedor = await db.prepare('SELECT * FROM proveedores WHERE id = ?').get(req.params.id);
     if (!proveedor) {
@@ -23,7 +23,7 @@ export const getById = async (req, res) => {
   }
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { nombre, razon_social, nit, telefono, email, direccion, contacto_nombre } = req.body;
 
@@ -45,7 +45,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const update = async (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, razon_social, nit, telefono, email, direccion, contacto_nombre, activo } = req.body;
@@ -86,3 +86,6 @@ export const update = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al actualizar el proveedor' });
   }
 };
+
+
+module.exports = { getAll, getById, create, update };

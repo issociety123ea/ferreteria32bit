@@ -1,30 +1,24 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { errorHandler } from './middleware/errorHandler.js';
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+const { errorHandler } = require('./middleware/errorHandler.js');
 
 // Import routes
-import authRoutes from './routes/auth.routes.js';
-import productosRoutes from './routes/productos.routes.js';
-import ventasRoutes from './routes/ventas.routes.js';
-import clientesRoutes from './routes/clientes.routes.js';
-import categoriasRoutes from './routes/categorias.routes.js';
-import comprasRoutes from './routes/compras.routes.js';
-import proveedoresRoutes from './routes/proveedores.routes.js';
-import reportesRoutes from './routes/reportes.routes.js';
-import usuariosRoutes from './routes/usuarios.routes.js';
-import kardexRoutes from './routes/kardex.routes.js';
-
-// Initialize dotenv
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const authRoutes = require('./routes/auth.routes.js');
+const productosRoutes = require('./routes/productos.routes.js');
+const ventasRoutes = require('./routes/ventas.routes.js');
+const clientesRoutes = require('./routes/clientes.routes.js');
+const categoriasRoutes = require('./routes/categorias.routes.js');
+const comprasRoutes = require('./routes/compras.routes.js');
+const proveedoresRoutes = require('./routes/proveedores.routes.js');
+const reportesRoutes = require('./routes/reportes.routes.js');
+const usuariosRoutes = require('./routes/usuarios.routes.js');
+const kardexRoutes = require('./routes/kardex.routes.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -123,4 +117,5 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-export default app;
+module.exports = app;
+

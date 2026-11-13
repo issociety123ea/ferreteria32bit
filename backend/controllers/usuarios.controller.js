@@ -1,7 +1,7 @@
-import db from '../config/database.js';
-import bcrypt from 'bcryptjs';
+const db = require('../config/database.js');
+const bcrypt = require('bcryptjs');
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const usuarios = await db.prepare('SELECT id, nombre, username, rol, activo, creado_at FROM usuarios ORDER BY nombre ASC').all();
     res.json({ success: true, data: usuarios });
@@ -11,7 +11,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { nombre, username, password, rol } = req.body;
 
@@ -48,7 +48,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const update = async (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, username, password, rol, activo } = req.body;
@@ -124,7 +124,7 @@ export const update = async (req, res) => {
   }
 };
 
-export const deleteUser = async (req, res) => {
+const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -155,3 +155,6 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al eliminar el usuario' });
   }
 };
+
+
+module.exports = { getAll, create, update, deleteUser };

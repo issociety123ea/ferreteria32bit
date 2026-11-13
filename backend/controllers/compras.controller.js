@@ -1,4 +1,4 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
 const generateNumeroCompra = async () => {
   const today = new Date();
@@ -18,7 +18,7 @@ const generateNumeroCompra = async () => {
   return `${prefix}${String(nextNum).padStart(4, '0')}`;
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { proveedor_id, items, notas } = req.body;
 
@@ -112,7 +112,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -147,7 +147,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const getById = async (req, res) => {
+const getById = async (req, res) => {
   try {
     const compra = await db.prepare(`
       SELECT c.*, p.nombre as proveedor_nombre, u.nombre as usuario_nombre
@@ -174,3 +174,6 @@ export const getById = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al obtener la compra' });
   }
 };
+
+
+module.exports = { generateNumeroCompra, create, getAll, offset, getById };

@@ -1,10 +1,10 @@
-import express from 'express';
-import * as kardexController from '../controllers/kardex.controller.js';
-import { authenticateToken, isAdmin } from '../middleware/auth.js';
+const express = require('express');
+const { getByProducto, offset, getAll, offset } = require('../controllers/kardex.controller.js');
+const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, isAdmin, kardexController.getAll);
-router.get('/producto/:producto_id', authenticateToken, isAdmin, kardexController.getByProducto);
+router.get('/', authenticateToken, isAdmin, getAll);
+router.get('/producto/:producto_id', authenticateToken, isAdmin, getByProducto);
 
-export default router;
+module.exports = router;

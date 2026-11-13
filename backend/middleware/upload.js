@@ -1,10 +1,8 @@
-import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = __dirname || path.dirname(require.main.filename);
 
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
 
@@ -38,7 +36,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Create multer instance
-export const upload = multer({
+const upload = multer({
   storage: storage,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB max
@@ -46,4 +44,4 @@ export const upload = multer({
   fileFilter: fileFilter
 });
 
-export default upload;
+module.exports = { upload };

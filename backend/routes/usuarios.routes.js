@@ -1,12 +1,12 @@
-import express from 'express';
-import * as usuariosController from '../controllers/usuarios.controller.js';
-import { authenticateToken, isAdmin, isRoot } from '../middleware/auth.js';
+const express = require('express');
+const { getAll, create, update, deleteUser } = require('../controllers/usuarios.controller.js');
+const { authenticateToken, isAdmin, isRoot  } = require('../middleware/auth.js');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, isAdmin, usuariosController.getAll);
-router.post('/', authenticateToken, isRoot, usuariosController.create);
-router.put('/:id', authenticateToken, isRoot, usuariosController.update);
-router.delete('/:id', authenticateToken, isRoot, usuariosController.deleteUser);
+router.get('/', authenticateToken, isAdmin, getAll);
+router.post('/', authenticateToken, isRoot, create);
+router.put('/:id', authenticateToken, isRoot, update);
+router.delete('/:id', authenticateToken, isRoot, deleteUser);
 
-export default router;
+module.exports = router;

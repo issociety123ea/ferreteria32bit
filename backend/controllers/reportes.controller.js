@@ -1,6 +1,6 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
-export const ventasDiarias = async (req, res) => {
+const ventasDiarias = async (req, res) => {
   try {
     const fechaDesde = req.query.fecha_desde || new Date().toISOString().slice(0, 10);
     const fechaHasta = req.query.fecha_hasta || fechaDesde;
@@ -32,7 +32,7 @@ export const ventasDiarias = async (req, res) => {
   }
 };
 
-export const corteCaja = async (req, res) => {
+const corteCaja = async (req, res) => {
   try {
     const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
     const usuarioId = req.query.usuario_id || req.user.id;
@@ -94,7 +94,7 @@ export const corteCaja = async (req, res) => {
   }
 };
 
-export const productosMasVendidos = async (req, res) => {
+const productosMasVendidos = async (req, res) => {
   try {
     const fechaDesde = req.query.fecha_desde || '';
     const fechaHasta = req.query.fecha_hasta || '';
@@ -142,7 +142,7 @@ export const productosMasVendidos = async (req, res) => {
   }
 };
 
-export const stockBajo = async (req, res) => {
+const stockBajo = async (req, res) => {
   try {
     const productos = await db.prepare(`
       SELECT
@@ -182,7 +182,7 @@ export const stockBajo = async (req, res) => {
   }
 };
 
-export const resumenGeneral = async (req, res) => {
+const resumenGeneral = async (req, res) => {
   try {
     const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
 
@@ -252,3 +252,6 @@ export const resumenGeneral = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al obtener el resumen general' });
   }
 };
+
+
+module.exports = { ventasDiarias, corteCaja, productosMasVendidos, stockBajo, resumenGeneral };

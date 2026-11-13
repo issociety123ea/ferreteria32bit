@@ -1,13 +1,13 @@
-import express from 'express';
-import * as ventasController from '../controllers/ventas.controller.js';
-import { authenticateToken, isAdmin } from '../middleware/auth.js';
+const express = require('express');
+const { generateNumeroVenta, create, getAll, offset, getById, annulSale } = require('../controllers/ventas.controller.js');
+const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, ventasController.getAll);
-router.get('/mi-historial', authenticateToken, ventasController.getMiHistorial);
-router.get('/:id', authenticateToken, ventasController.getById);
-router.post('/', authenticateToken, ventasController.create);
-router.post('/:id/anular', authenticateToken, isAdmin, ventasController.anular);
+router.get('/', authenticateToken, getAll);
+router.get('/mi-historial', authenticateToken, getMiHistorial);
+router.get('/:id', authenticateToken, getById);
+router.post('/', authenticateToken, create);
+router.post('/:id/anular', authenticateToken, isAdmin, anular);
 
-export default router;
+module.exports = router;

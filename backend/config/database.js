@@ -1,10 +1,8 @@
-import sqlite3 from 'sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+const sqlite3 = require('sqlite3');
+const path = require('path');
+const fs = require('fs');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = __dirname || path.dirname(require.main.filename);
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', 'database', 'ferreteria.db');
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'database', 'schema.sql');
@@ -139,4 +137,4 @@ class DatabaseWrapper {
 
 const db = new DatabaseWrapper(dbConnection);
 
-export default db;
+module.exports = db;

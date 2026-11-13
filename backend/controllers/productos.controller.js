@@ -1,6 +1,6 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -69,7 +69,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const getById = async (req, res) => {
+const getById = async (req, res) => {
   try {
     const isVendedor = req.user.rol === 'VENDEDOR';
     const selectFields = isVendedor
@@ -94,7 +94,7 @@ export const getById = async (req, res) => {
   }
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { codigo_sku_interno, nombre, descripcion, categoria_id, unidad_medida, permite_decimales, stock_actual, stock_minimo, precio_costo, precio_venta, imagen_url } = req.body;
 
@@ -161,7 +161,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const update = async (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { codigo_sku_interno, nombre, descripcion, categoria_id, unidad_medida, permite_decimales, stock_minimo, precio_costo, precio_venta, activo, imagen_url } = req.body;
@@ -228,7 +228,7 @@ export const update = async (req, res) => {
   }
 };
 
-export const adjustStock = async (req, res) => {
+const adjustStock = async (req, res) => {
   try {
     const { id } = req.params;
     const { tipo_movimiento, cantidad, notas } = req.body;
@@ -295,7 +295,7 @@ export const adjustStock = async (req, res) => {
   }
 };
 
-export const search = async (req, res) => {
+const search = async (req, res) => {
   try {
     const q = req.query.q || '';
     const limit = parseInt(req.query.limit) || 20;
@@ -333,7 +333,7 @@ export const search = async (req, res) => {
   }
 };
 
-export const getFrecuentes = async (req, res) => {
+const getFrecuentes = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 12;
 
@@ -361,3 +361,6 @@ export const getFrecuentes = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al obtener productos frecuentes' });
   }
 };
+
+
+module.exports = { getAll, offset, getById, create, update, adjustStock, search, getFrecuentes };

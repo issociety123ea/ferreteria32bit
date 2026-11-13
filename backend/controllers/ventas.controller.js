@@ -1,4 +1,4 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
 // Generate sequential venta number: VTA-YYYYMMDD-XXXX
 const generateNumeroVenta = async () => {
@@ -19,7 +19,7 @@ const generateNumeroVenta = async () => {
   return `${prefix}${String(nextNum).padStart(4, '0')}`;
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   const connection = db.connection;
 
   try {
@@ -182,7 +182,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -218,7 +218,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const getById = async (req, res) => {
+const getById = async (req, res) => {
   try {
     const venta = await db.prepare(`
       SELECT v.*, u.nombre as usuario_nombre, c.nombre as cliente_nombre
@@ -246,7 +246,7 @@ export const getById = async (req, res) => {
   }
 };
 
-export const annulSale = async (req, res) => {
+const annulSale = async (req, res) => {
   const connection = db.connection;
 
   try {
@@ -312,3 +312,6 @@ export const annulSale = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al anular la venta' });
   }
 };
+
+
+module.exports = { generateNumeroVenta, create, getAll, offset, getById, annulSale };

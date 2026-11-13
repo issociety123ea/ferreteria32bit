@@ -1,6 +1,6 @@
-import { verifyToken } from '../config/auth.js';
+const { verifyToken  } = require('../config/auth.js');
 
-export const authenticateToken = (req, res, next) => {
+const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -20,7 +20,7 @@ export const authenticateToken = (req, res, next) => {
   }
 };
 
-export const requireRole = (...roles) => {
+const requireRole = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'No autenticado' });
@@ -32,5 +32,7 @@ export const requireRole = (...roles) => {
   };
 };
 
-export const isAdmin = requireRole('ADMIN', 'ROOT');
-export const isRoot = requireRole('ROOT');
+const isAdmin = requireRole('ADMIN', 'ROOT');
+const isRoot = requireRole('ROOT');
+
+module.exports = { authenticateToken, requireRole, isAdmin, isRoot };

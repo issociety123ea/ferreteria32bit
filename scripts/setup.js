@@ -1,11 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { execSync  } = require('child_process');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = __dirname || path.dirname(require.main.filename);
 
 console.log('╔═══════════════════════════════════════════════════════════╗');
 console.log('║                                                           ║');

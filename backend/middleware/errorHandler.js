@@ -1,4 +1,4 @@
-export const errorHandler = (err, req, res, _next) => {
+const errorHandler = (err, req, res, _next) => {
   console.error(`[ERROR] ${new Date().toISOString()} - ${req.method} ${req.url}:`, err.message);
 
   if (err.type === 'entity.parse.failed') {
@@ -18,3 +18,5 @@ export const errorHandler = (err, req, res, _next) => {
     message: err.message || 'Error interno del servidor'
   });
 };
+
+module.exports = { errorHandler };

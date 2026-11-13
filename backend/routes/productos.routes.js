@@ -1,16 +1,16 @@
-import express from 'express';
-import * as productosController from '../controllers/productos.controller.js';
-import { authenticateToken, isAdmin } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+const express = require('express');
+const { getAll, search, getFrecuentes, getById, create, update, adjustStock } = require('../controllers/productos.controller.js');
+const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
+const { upload  } = require('../middleware/upload.js');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, productosController.getAll);
-router.get('/search', authenticateToken, productosController.search);
-router.get('/frecuentes', authenticateToken, productosController.getFrecuentes);
-router.get('/:id', authenticateToken, productosController.getById);
-router.post('/', authenticateToken, isAdmin, upload.single('imagen'), productosController.create);
-router.put('/:id', authenticateToken, isAdmin, upload.single('imagen'), productosController.update);
-router.post('/:id/ajustar-stock', authenticateToken, isAdmin, productosController.adjustStock);
+router.get('/', authenticateToken, getAll);
+router.get('/search', authenticateToken, search);
+router.get('/frecuentes', authenticateToken, getFrecuentes);
+router.get('/:id', authenticateToken, getById);
+router.post('/', authenticateToken, isAdmin, upload.single('imagen'), create);
+router.put('/:id', authenticateToken, isAdmin, upload.single('imagen'), update);
+router.post('/:id/ajustar-stock', authenticateToken, isAdmin, adjustStock);
 
-export default router;
+module.exports = router;

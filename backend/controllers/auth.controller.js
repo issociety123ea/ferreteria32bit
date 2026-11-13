@@ -1,8 +1,8 @@
-import bcrypt from 'bcryptjs';
-import db from '../config/database.js';
-import { generateToken } from '../config/auth.js';
+const bcrypt = require('bcryptjs');
+const db = require('../config/database.js');
+const { generateToken  } = require('../config/auth.js');
 
-export const login = async (req, res) => {
+const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -46,7 +46,7 @@ export const login = async (req, res) => {
   }
 };
 
-export const cambiarPassword = async (req, res) => {
+const cambiarPassword = async (req, res) => {
   try {
     const { passwordActual, passwordNueva } = req.body;
 
@@ -74,7 +74,7 @@ export const cambiarPassword = async (req, res) => {
   }
 };
 
-export const getProfile = async (req, res) => {
+const getProfile = async (req, res) => {
   try {
     const user = await db.prepare('SELECT id, nombre, username, rol, activo, creado_at FROM usuarios WHERE id = ?').get(req.user.id);
     res.json({ success: true, data: user });
@@ -83,3 +83,5 @@ export const getProfile = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al obtener el perfil' });
   }
 };
+
+module.exports = { login, cambiarPassword, getProfile };

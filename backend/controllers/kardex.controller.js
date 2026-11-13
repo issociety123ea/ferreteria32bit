@@ -1,6 +1,6 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
-export const getByProducto = async (req, res) => {
+const getByProducto = async (req, res) => {
   try {
     const { producto_id } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -37,7 +37,7 @@ export const getByProducto = async (req, res) => {
   }
 };
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -93,3 +93,6 @@ export const getAll = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al obtener movimientos del kardex' });
   }
 };
+
+
+module.exports = { getByProducto, offset, getAll, offset };

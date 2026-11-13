@@ -1,6 +1,6 @@
-import db from '../config/database.js';
+const db = require('../config/database.js');
 
-export const getAll = async (req, res) => {
+const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -46,7 +46,7 @@ export const getAll = async (req, res) => {
   }
 };
 
-export const getById = async (req, res) => {
+const getById = async (req, res) => {
   try {
     const cliente = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(req.params.id);
 
@@ -74,7 +74,7 @@ export const getById = async (req, res) => {
   }
 };
 
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { nombre_razon_social, nit_ci, telefono, direccion, tipo_cliente, limite_credito } = req.body;
 
@@ -103,7 +103,7 @@ export const create = async (req, res) => {
   }
 };
 
-export const update = async (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre_razon_social, nit_ci, telefono, direccion, tipo_cliente, limite_credito, activo } = req.body;
@@ -143,7 +143,7 @@ export const update = async (req, res) => {
   }
 };
 
-export const search = async (req, res) => {
+const search = async (req, res) => {
   try {
     const q = req.query.q || '';
     const limit = parseInt(req.query.limit) || 20;
@@ -169,7 +169,7 @@ export const search = async (req, res) => {
   }
 };
 
-export const getProductosFrecuentes = async (req, res) => {
+const getProductosFrecuentes = async (req, res) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit) || 10;
@@ -206,3 +206,6 @@ export const getProductosFrecuentes = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error al obtener productos frecuentes' });
   }
 };
+
+
+module.exports = { getAll, offset, getById, create, update, search, getProductosFrecuentes };

@@ -1,11 +1,11 @@
-import express from 'express';
-import * as comprasController from '../controllers/compras.controller.js';
-import { authenticateToken, isAdmin } from '../middleware/auth.js';
+const express = require('express');
+const { generateNumeroCompra, create, getAll, offset, getById } = require('../controllers/compras.controller.js');
+const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
 
 const router = express.Router();
 
-router.get('/', authenticateToken, isAdmin, comprasController.getAll);
-router.get('/:id', authenticateToken, isAdmin, comprasController.getById);
-router.post('/', authenticateToken, isAdmin, comprasController.create);
+router.get('/', authenticateToken, isAdmin, getAll);
+router.get('/:id', authenticateToken, isAdmin, getById);
+router.post('/', authenticateToken, isAdmin, create);
 
-export default router;
+module.exports = router;
