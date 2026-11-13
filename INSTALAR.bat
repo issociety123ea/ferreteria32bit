@@ -8,10 +8,13 @@ cd /d "%SCRIPT_DIR%"
 cls
 echo.
 echo ============================================================
-echo    FERRETERIA POS - INSTALACION PARA WINDOWS 7 32-BITS
+echo    FERRETERIA POS - INSTALACION AUTOMATICA
+echo    Windows 7 32-bits + Node.js 12.22.12
 echo ============================================================
 echo.
-echo Presiona cualquier tecla para continuar...
+echo Este script instalara el sistema y lo iniciara automaticamente.
+echo.
+echo Presiona cualquier tecla para comenzar...
 pause >nul
 cls
 
@@ -21,11 +24,18 @@ REM ============================================================
 echo.
 echo [PASO 1/6] Verificando Node.js...
 echo.
+
 where node >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Node.js NO esta instalado
+    cls
     echo.
-    echo Descarga Node.js 12.22.12 para Windows 7 32-bits desde:
+    echo ============================================================
+    echo ERROR: Node.js NO esta instalado
+    echo ============================================================
+    echo.
+    echo Necesitas instalar Node.js 12.22.12 para Windows 7 32-bits
+    echo.
+    echo Descarga desde:
     echo https://nodejs.org/dist/v12.22.12/node-v12.22.12-x86.msi
     echo.
     echo Instalalo y vuelve a ejecutar este script.
@@ -34,174 +44,135 @@ if errorlevel 1 (
     exit /b 1
 )
 
-node --version 2>&1
-if errorlevel 1 (
-    echo ERROR: Node.js no se puede ejecutar
-    echo.
-    pause
-    exit /b 1
-)
+node --version
 echo.
-echo OK - Node.js instalado correctamente
-timeout /t 2 >nul
-echo.
+echo ✓ Node.js instalado correctamente
+timeout /t 1 >nul
 
 REM ============================================================
 REM PASO 2: Verificar NPM
 REM ============================================================
+echo.
 echo [PASO 2/6] Verificando NPM...
 echo.
-where npm >nul 2>&1
+
+call npm --version >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: NPM no esta instalado
+    cls
+    echo.
+    echo ============================================================
+    echo ERROR: NPM no funciona correctamente
+    echo ============================================================
     echo.
     pause
     exit /b 1
 )
 
-call npm --version 2>&1
-if errorlevel 1 (
-    echo ERROR: NPM no se puede ejecutar
+call npm --version
+echo.
+echo ✓ NPM funcionando correctamente
+timeout /t 1 >nul
+
+REM ============================================================
+REM PASO 3: Verificar frontend compilado
+REM ============================================================
+echo.
+echo [PASO 3/6] Verificando frontend compilado...
+echo.
+
+if not exist "frontend\dist\index.html" (
+    cls
+    echo.
+    echo ============================================================
+    echo ERROR: Frontend NO encontrado
+    echo ============================================================
+    echo.
+    echo El archivo frontend\dist\index.html no existe.
+    echo.
+    echo Asegurate de haber clonado el repositorio completo:
+    echo   git clone https://github.com/issociety123ea/ferreteria32bit.git
+    echo.
+    echo O descarga el ZIP completo desde GitHub.
     echo.
     pause
     exit /b 1
 )
-echo.
-echo OK - NPM instalado correctamente
-timeout /t 2 >nul
-echo.
+
+echo ✓ Frontend compilado encontrado
+timeout /t 1 >nul
 
 REM ============================================================
-REM PASO 3: Crear directorios necesarios
+REM PASO 4: Crear directorios
 REM ============================================================
-echo [PASO 3/6] Creando directorios del sistema...
+echo.
+echo [PASO 4/6] Creando directorios del sistema...
 echo.
 
-if not exist "database" (
-    mkdir "database"
-    echo   - Creado: database\
-)
-if not exist "database\backups" (
-    mkdir "database\backups"
-    echo   - Creado: database\backups\
-)
-if not exist "uploads" (
-    mkdir "uploads"
-    echo   - Creado: uploads\
-)
+if not exist "database" mkdir "database"
+if not exist "database\backups" mkdir "database\backups"
+if not exist "uploads" mkdir "uploads"
 
-echo.
-echo OK - Directorios creados
-timeout /t 2 >nul
-echo.
+echo ✓ Directorios creados
+timeout /t 1 >nul
 
 REM ============================================================
-REM PASO 4: Limpiar instalaciones anteriores
+REM PASO 5: Limpiar e instalar dependencias
 REM ============================================================
-echo [PASO 4/6] Limpiando instalaciones anteriores...
+echo.
+echo [PASO 5/6] Instalando dependencias del backend...
+echo.
+echo IMPORTANTE: Esto puede tardar 10-20 minutos en la primera vez.
+echo No cierres esta ventana.
 echo.
 
-if exist "node_modules" (
-    echo   - Eliminando node_modules antiguo...
-    rmdir /S /Q "node_modules" >nul 2>&1
-)
-if exist "package-lock.json" (
-    echo   - Eliminando package-lock.json antiguo...
-    del /Q "package-lock.json" >nul 2>&1
-)
+if exist "node_modules" rmdir /S /Q "node_modules" >nul 2>&1
+if exist "package-lock.json" del /Q "package-lock.json" >nul 2>&1
 
-echo.
-echo OK - Limpieza completada
-timeout /t 2 >nul
-echo.
-
-REM ============================================================
-REM PASO 5: Instalar dependencias del BACKEND
-REM ============================================================
-echo [PASO 5/6] Instalando dependencias del BACKEND...
-echo.
-echo IMPORTANTE: Esto puede tardar 10-20 minutos.
-echo No cierres esta ventana hasta que termine.
-echo.
 echo Instalando ahora...
 echo.
 
-call npm install --production --no-optional --legacy-peer-deps 2>&1
+call npm install --production --no-optional --legacy-peer-deps
 if errorlevel 1 (
+    cls
     echo.
     echo ============================================================
     echo ERROR: Fallo la instalacion de dependencias
     echo ============================================================
     echo.
-    echo Intenta manualmente con: npm install --production
+    echo Intenta manualmente:
+    echo   npm install --production
     echo.
     pause
     exit /b 1
 )
 
 echo.
-echo OK - Dependencias del backend instaladas correctamente
+echo ✓ Dependencias instaladas correctamente
 timeout /t 2 >nul
-echo.
 
 REM ============================================================
-REM PASO 6: Verificar frontend y crear .env
+REM PASO 6: Crear archivo .env
 REM ============================================================
-echo [PASO 6/6] Configuracion final...
+echo.
+echo [PASO 6/6] Configurando sistema...
 echo.
 
-REM Verificar frontend compilado
-if not exist "frontend\dist\index.html" (
-    echo.
-    echo ============================================================
-    echo ADVERTENCIA: Frontend NO esta compilado
-    echo ============================================================
-    echo.
-    echo El directorio frontend\dist\ no existe o esta vacio.
-    echo.
-    echo El frontend debe estar pre-compilado porque Node 12
-    echo no puede ejecutar Vite 5.
-    echo.
-    echo SOLUCION:
-    echo   1. En una PC con Node.js 18 o superior, ejecuta:
-    echo      cd frontend
-    echo      npm install
-    echo      npm run build
-    echo.
-    echo   2. Copia la carpeta frontend\dist\ generada a este proyecto
-    echo.
-    echo   3. Vuelve a ejecutar instalar.bat
-    echo.
-    echo ============================================================
-    echo.
-    pause
-    exit /b 1
-)
-
-echo   - Frontend compilado encontrado: frontend\dist\index.html
-echo.
-
-REM Crear archivo .env si no existe
 if not exist ".env" (
-    echo   - Creando archivo de configuracion .env...
     (
         echo PORT=3000
         echo NODE_ENV=production
         echo DB_PATH=./database/ferreteria.db
         echo JWT_SECRET=ferreteria_secret_%RANDOM%%RANDOM%
     ) > ".env"
-    echo   - Archivo .env creado
+    echo ✓ Archivo .env creado
 ) else (
-    echo   - Archivo .env ya existe
+    echo ✓ Archivo .env ya existe
 )
 
-echo.
-echo OK - Configuracion completada
-timeout /t 2 >nul
-echo.
+timeout /t 1 >nul
 
 REM ============================================================
-REM INSTALACION COMPLETADA
+REM INSTALACION COMPLETADA - INICIANDO SISTEMA
 REM ============================================================
 cls
 echo.
@@ -209,14 +180,26 @@ echo ============================================================
 echo    INSTALACION COMPLETADA EXITOSAMENTE
 echo ============================================================
 echo.
-echo El sistema POS esta listo para usar en Windows 7 32-bits.
+echo El sistema se iniciara automaticamente en 3 segundos...
 echo.
-echo PARA INICIAR EL SERVIDOR:
-echo   1. Ejecuta el archivo: INICIAR.bat
-echo   2. O desde la terminal: npm start
+echo Abre tu navegador en: http://localhost:3000
 echo.
-echo LUEGO ABRE TU NAVEGADOR EN:
-echo   http://localhost:3000
+echo Credenciales:
+echo   Usuario:    admin
+echo   Contrasena: admin123
+echo.
+echo ============================================================
+echo.
+
+timeout /t 3 >nul
+
+cls
+echo.
+echo ============================================================
+echo    FERRETERIA POS - SERVIDOR INICIADO
+echo ============================================================
+echo.
+echo Servidor corriendo en: http://localhost:3000
 echo.
 echo CREDENCIALES POR DEFECTO:
 echo   Usuario:    admin
@@ -225,10 +208,24 @@ echo.
 echo   Usuario:    vendedor1
 echo   Contrasena: 1234
 echo.
+echo Presiona CTRL+C para detener el servidor
+echo.
 echo ============================================================
 echo.
-echo Presiona cualquier tecla para cerrar...
-pause >nul
+
+REM Iniciar el servidor
+node backend/server.js
+
+REM Si el servidor se detiene
+echo.
+echo.
+echo ============================================================
+echo SERVIDOR DETENIDO
+echo ============================================================
+echo.
+echo Para reiniciar el servidor ejecuta: INICIAR.bat
+echo.
+pause
 
 endlocal
 exit /b 0
