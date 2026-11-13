@@ -20,7 +20,7 @@ const dbConnection = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
-// Performance optimizations
+// Performance optimizations & Schema initialization in SERIAL mode
 dbConnection.configure('busyTimeout', 5000);
 dbConnection.serialize(() => {
   dbConnection.run('PRAGMA journal_mode = WAL');
@@ -28,39 +28,39 @@ dbConnection.serialize(() => {
   dbConnection.run('PRAGMA cache_size = -64000');
   dbConnection.run('PRAGMA foreign_keys = ON');
   dbConnection.run('PRAGMA temp_store = MEMORY');
-});
 
-// Initialize schema if tables don't exist
-dbConnection.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
-  if (err) {
-    console.error('[DB] Error al verificar tablas:', err);
-    return;
-  }
+  // Check if usuarios table exists
+  dbConnection.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
+    if (err) {
+      console.error('[DB] Error al verificar tablas:', err);
+      return;
+    }
 
-  if (!row) {
-    console.log('[DB] Inicializando esquema de base de datos...');
-    const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
+    if (!row) {
+      console.log('[DB] Inicializando esquema de base de datos en orden serial...');
+      try {
+        const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
+        const statements = schema.split(';').map(s => s.trim()).filter(s => s.length > 0);
 
-    // Split schema by semicolons and execute each statement
-    const statements = schema.split(';').filter(stmt => stmt.trim());
-    let completed = 0;
-
-    statements.forEach((statement) => {
-      dbConnection.run(statement + ';', (err) => {
-        if (err) {
-          console.error('[DB] Error al crear esquema:', err);
-        }
-        completed++;
-        if (completed === statements.length) {
+        // Run statements one by one sequentially
+        dbConnection.serialize(() => {
+          statements.forEach((statement) => {
+            dbConnection.run(statement + ';', (err) => {
+              if (err) {
+                console.error('[DB] Error en sentencia SQL:', err.message);
+              }
+            });
+          });
           console.log('[DB] Esquema creado exitosamente.');
-        }
-      });
-    });
-  }
+        });
+      } catch (e) {
+        console.error('[DB] Error al leer schema.sql:', e);
+      }
+    }
+  });
 });
 
 // Compatibility wrapper to emulate better-sqlite3 API
-// This allows existing code to work with sqlite3
 class PreparedStatement {
   constructor(sql, db) {
     this.sql = sql;
@@ -95,7 +95,6 @@ class PreparedStatement {
   }
 }
 
-// Wrapper class to emulate better-sqlite3 Database API
 class DatabaseWrapper {
   constructor(connection) {
     this.connection = connection;
