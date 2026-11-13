@@ -78,3 +78,4 @@ $env:ANTHROPIC_BASE_URL = "http://localhost:20128"
 $env:ANTHROPIC_AUTH_TOKEN = "sk-4776e9599b343af8-bf582c-8c0f9713"
 $env:ANTHROPIC_API_KEY = ""
 $env:ANTHROPIC_MODEL = "alien"
+
