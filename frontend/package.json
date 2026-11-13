@@ -1,8 +1,11 @@
 {
   "name": "ferreteria-pos-frontend",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "build": "node build-simple.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "vue": "^3.3.13",
@@ -10,5 +13,12 @@
     "pinia": "^2.1.7",
     "axios": "^1.6.3",
     "@heroicons/vue": "^2.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.2",
+    "vite": "^5.0.11",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1"
   }
 }
