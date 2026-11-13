@@ -5,6 +5,5 @@ database/*.db-shm
 database/*.db-wal
 logs/
 *.log
-dist/
 .DS_Store
 Thumbs.db
