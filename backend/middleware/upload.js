@@ -2,8 +2,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const __dirname = __dirname || path.dirname(require.main.filename);
-
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
 
 // Ensure uploads directory exists

@@ -2,8 +2,6 @@ const sqlite3 = require('sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const __dirname = __dirname || path.dirname(require.main.filename);
-
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', 'database', 'ferreteria.db');
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'database', 'schema.sql');
 

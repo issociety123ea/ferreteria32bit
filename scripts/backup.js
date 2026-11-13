@@ -1,8 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const __dirname = __dirname || path.dirname(require.main.filename);
-
 const DB_PATH = path.join(__dirname, '..', 'database', 'ferreteria.db');
 const BACKUP_DIR = path.join(__dirname, '..', 'database', 'backups');
 

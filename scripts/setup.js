@@ -3,8 +3,6 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync  } = require('child_process');
 
-const __dirname = __dirname || path.dirname(require.main.filename);
-
 console.log('╔═══════════════════════════════════════════════════════════╗');
 console.log('║                                                           ║');
 console.log('║          FERRETERÍA POS - CONFIGURACIÓN INICIAL          ║');
