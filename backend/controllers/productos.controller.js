@@ -1,6 +1,6 @@
 import db from '../config/database.js';
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -35,14 +35,14 @@ export const getAll = (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
-    const countResult = db.prepare(`SELECT COUNT(*) as total FROM productos p ${whereClause}`).get(...params);
+    const countResult = await db.prepare(`SELECT COUNT(*) as total FROM productos p ${whereClause}`).get(...params);
 
     const isVendedor = req.user.rol === 'VENDEDOR';
     const selectFields = isVendedor
       ? 'p.id, p.codigo_sku_interno, p.nombre, p.descripcion, p.imagen_url, p.categoria_id, c.nombre as categoria_nombre, p.unidad_medida, p.permite_decimales, p.stock_actual, p.precio_venta, p.activo'
       : 'p.id, p.codigo_sku_interno, p.nombre, p.descripcion, p.imagen_url, p.categoria_id, c.nombre as categoria_nombre, p.unidad_medida, p.permite_decimales, p.stock_actual, p.stock_minimo, p.precio_costo, p.precio_venta, p.margen_ganancia, p.activo, p.creado_at, p.actualizado_at';
 
-    const productos = db.prepare(`
+    const productos = await db.prepare(`
       SELECT ${selectFields}
       FROM productos p
       LEFT JOIN categorias c ON p.categoria_id = c.id
@@ -69,14 +69,14 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
     const isVendedor = req.user.rol === 'VENDEDOR';
     const selectFields = isVendedor
       ? 'p.id, p.codigo_sku_interno, p.nombre, p.imagen_url, p.unidad_medida, p.permite_decimales, p.stock_actual, p.precio_venta'
       : 'p.*, c.nombre as categoria_nombre';
 
-    const producto = db.prepare(`
+    const producto = await db.prepare(`
       SELECT ${selectFields}
       FROM productos p
       LEFT JOIN categorias c ON p.categoria_id = c.id
@@ -94,7 +94,7 @@ export const getById = (req, res) => {
   }
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { codigo_sku_interno, nombre, descripcion, categoria_id, unidad_medida, permite_decimales, stock_actual, stock_minimo, precio_costo, precio_venta, imagen_url } = req.body;
 
@@ -102,7 +102,7 @@ export const create = (req, res) => {
       return res.status(400).json({ success: false, message: 'Código, nombre y precio de venta son requeridos' });
     }
 
-    const existing = db.prepare('SELECT id FROM productos WHERE codigo_sku_interno = ?').get(codigo_sku_interno);
+    const existing = await db.prepare('SELECT id FROM productos WHERE codigo_sku_interno = ?').get(codigo_sku_interno);
     if (existing) {
       return res.status(409).json({ success: false, message: 'Ya existe un producto con ese código' });
     }
@@ -113,58 +113,67 @@ export const create = (req, res) => {
       finalImageUrl = `/uploads/${req.file.filename}`;
     }
 
-    const result = db.prepare(`
-      INSERT INTO productos (codigo_sku_interno, nombre, descripcion, imagen_url, categoria_id, unidad_medida, permite_decimales, stock_actual, stock_minimo, precio_costo, precio_venta)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      codigo_sku_interno,
-      nombre,
-      descripcion || null,
-      finalImageUrl,
-      categoria_id || null,
-      unidad_medida || 'Pieza',
-      permite_decimales ? 1 : 0,
-      stock_actual || 0,
-      stock_minimo || 0,
-      precio_costo || 0,
-      precio_venta
-    );
+    try {
+      await db.prepare('BEGIN TRANSACTION').run();
 
-    // Registrar en kardex si hay stock inicial
-    if (stock_actual && stock_actual > 0) {
-      db.prepare(`
-        INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, stock_anterior, stock_nuevo, costo_unitario, referencia_tipo, usuario_id, notas)
-        VALUES (?, 'AJUSTE_ENTRADA', ?, 0, ?, ?, 'INVENTARIO_INICIAL', ?, 'Stock inicial al crear producto')
-      `).run(result.lastInsertRowid, stock_actual, stock_actual, precio_costo || 0, req.user.id);
+      const result = await db.prepare(`
+        INSERT INTO productos (codigo_sku_interno, nombre, descripcion, imagen_url, categoria_id, unidad_medida, permite_decimales, stock_actual, stock_minimo, precio_costo, precio_venta)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        codigo_sku_interno,
+        nombre,
+        descripcion || null,
+        finalImageUrl,
+        categoria_id || null,
+        unidad_medida || 'Pieza',
+        permite_decimales ? 1 : 0,
+        stock_actual || 0,
+        stock_minimo || 0,
+        precio_costo || 0,
+        precio_venta
+      );
+
+      // Registrar en kardex si hay stock inicial
+      if (stock_actual && stock_actual > 0) {
+        await db.prepare(`
+          INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, stock_anterior, stock_nuevo, costo_unitario, referencia_tipo, usuario_id, notas)
+          VALUES (?, 'AJUSTE_ENTRADA', ?, 0, ?, ?, 'INVENTARIO_INICIAL', ?, 'Stock inicial al crear producto')
+        `).run(result.lastID, stock_actual, stock_actual, precio_costo || 0, req.user.id);
+      }
+
+      // Auditoría
+      await db.prepare(
+        'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
+      ).run(req.user.id, 'CREAR_PRODUCTO', 'INVENTARIO', 'productos', result.lastID);
+
+      await db.prepare('COMMIT').run();
+
+      const producto = await db.prepare('SELECT p.*, c.nombre as categoria_nombre FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id WHERE p.id = ?').get(result.lastID);
+
+      res.status(201).json({ success: true, data: producto, message: 'Producto creado exitosamente' });
+    } catch (error) {
+      await db.prepare('ROLLBACK').run();
+      throw error;
     }
-
-    // Auditoría
-    db.prepare(
-      'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
-    ).run(req.user.id, 'CREAR_PRODUCTO', 'INVENTARIO', 'productos', result.lastInsertRowid);
-
-    const producto = db.prepare('SELECT p.*, c.nombre as categoria_nombre FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id WHERE p.id = ?').get(result.lastInsertRowid);
-
-    res.status(201).json({ success: true, data: producto, message: 'Producto creado exitosamente' });
   } catch (error) {
     console.error('Error al crear producto:', error);
     res.status(500).json({ success: false, message: 'Error al crear el producto' });
   }
 };
 
-export const update = (req, res) => {
+export const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { codigo_sku_interno, nombre, descripcion, categoria_id, unidad_medida, permite_decimales, stock_minimo, precio_costo, precio_venta, activo, imagen_url } = req.body;
 
-    const existing = db.prepare('SELECT * FROM productos WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM productos WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Producto no encontrado' });
     }
 
     // Check for duplicate code
     if (codigo_sku_interno && codigo_sku_interno !== existing.codigo_sku_interno) {
-      const duplicate = db.prepare('SELECT id FROM productos WHERE codigo_sku_interno = ? AND id != ?').get(codigo_sku_interno, id);
+      const duplicate = await db.prepare('SELECT id FROM productos WHERE codigo_sku_interno = ? AND id != ?').get(codigo_sku_interno, id);
       if (duplicate) {
         return res.status(409).json({ success: false, message: 'Ya existe un producto con ese código' });
       }
@@ -176,7 +185,7 @@ export const update = (req, res) => {
       finalImageUrl = `/uploads/${req.file.filename}`;
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE productos SET
         codigo_sku_interno = COALESCE(?, codigo_sku_interno),
         nombre = COALESCE(?, nombre),
@@ -206,11 +215,11 @@ export const update = (req, res) => {
     );
 
     // Auditoría
-    db.prepare(
+    await db.prepare(
       'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, datos_anteriores) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(req.user.id, 'ACTUALIZAR_PRODUCTO', 'INVENTARIO', 'productos', id, JSON.stringify(existing));
 
-    const producto = db.prepare('SELECT p.*, c.nombre as categoria_nombre FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id WHERE p.id = ?').get(id);
+    const producto = await db.prepare('SELECT p.*, c.nombre as categoria_nombre FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id WHERE p.id = ?').get(id);
 
     res.json({ success: true, data: producto, message: 'Producto actualizado exitosamente' });
   } catch (error) {
@@ -219,7 +228,7 @@ export const update = (req, res) => {
   }
 };
 
-export const adjustStock = (req, res) => {
+export const adjustStock = async (req, res) => {
   try {
     const { id } = req.params;
     const { tipo_movimiento, cantidad, notas } = req.body;
@@ -232,7 +241,7 @@ export const adjustStock = (req, res) => {
       return res.status(400).json({ success: false, message: 'Tipo de movimiento no válido' });
     }
 
-    const producto = db.prepare('SELECT * FROM productos WHERE id = ?').get(id);
+    const producto = await db.prepare('SELECT * FROM productos WHERE id = ?').get(id);
     if (!producto) {
       return res.status(404).json({ success: false, message: 'Producto no encontrado' });
     }
@@ -249,20 +258,25 @@ export const adjustStock = (req, res) => {
       }
     }
 
-    const adjustTransaction = db.transaction(() => {
-      db.prepare('UPDATE productos SET stock_actual = ? WHERE id = ?').run(stockNuevo, id);
+    try {
+      await db.prepare('BEGIN TRANSACTION').run();
 
-      db.prepare(`
+      await db.prepare('UPDATE productos SET stock_actual = ? WHERE id = ?').run(stockNuevo, id);
+
+      await db.prepare(`
         INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, stock_anterior, stock_nuevo, costo_unitario, referencia_tipo, usuario_id, notas)
         VALUES (?, ?, ?, ?, ?, ?, 'AJUSTE_MANUAL', ?, ?)
       `).run(id, tipo_movimiento, cantidad, stockAnterior, stockNuevo, producto.precio_costo, req.user.id, notas || null);
 
-      db.prepare(
+      await db.prepare(
         'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
       ).run(req.user.id, `AJUSTE_STOCK_${tipo_movimiento}`, 'INVENTARIO', 'productos', id);
-    });
 
-    adjustTransaction();
+      await db.prepare('COMMIT').run();
+    } catch (error) {
+      await db.prepare('ROLLBACK').run();
+      throw error;
+    }
 
     res.json({
       success: true,
@@ -281,7 +295,7 @@ export const adjustStock = (req, res) => {
   }
 };
 
-export const search = (req, res) => {
+export const search = async (req, res) => {
   try {
     const q = req.query.q || '';
     const limit = parseInt(req.query.limit) || 20;
@@ -296,7 +310,7 @@ export const search = (req, res) => {
       : 'p.id, p.codigo_sku_interno, p.nombre, p.imagen_url, p.unidad_medida, p.permite_decimales, p.stock_actual, p.stock_minimo, p.precio_costo, p.precio_venta, p.margen_ganancia';
 
     const searchParam = `%${q}%`;
-    const productos = db.prepare(`
+    const productos = await db.prepare(`
       SELECT ${selectFields}, c.nombre as categoria_nombre
       FROM productos p
       LEFT JOIN categorias c ON p.categoria_id = c.id
@@ -319,7 +333,7 @@ export const search = (req, res) => {
   }
 };
 
-export const getFrecuentes = (req, res) => {
+export const getFrecuentes = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 12;
 
@@ -329,7 +343,7 @@ export const getFrecuentes = (req, res) => {
       : 'p.id, p.codigo_sku_interno, p.nombre, p.imagen_url, p.unidad_medida, p.permite_decimales, p.stock_actual, p.stock_minimo, p.precio_costo, p.precio_venta, p.margen_ganancia';
 
     // Get most sold products
-    const productos = db.prepare(`
+    const productos = await db.prepare(`
       SELECT ${selectFields}, c.nombre as categoria_nombre, COALESCE(SUM(dv.cantidad), 0) as total_vendido
       FROM productos p
       LEFT JOIN categorias c ON p.categoria_id = c.id

@@ -1,15 +1,15 @@
 import db from '../config/database.js';
 
-export const getByProducto = (req, res) => {
+export const getByProducto = async (req, res) => {
   try {
     const { producto_id } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
 
-    const countResult = db.prepare('SELECT COUNT(*) as total FROM kardex WHERE producto_id = ?').get(producto_id);
+    const countResult = await db.prepare('SELECT COUNT(*) as total FROM kardex WHERE producto_id = ?').get(producto_id);
 
-    const movimientos = db.prepare(`
+    const movimientos = await db.prepare(`
       SELECT k.*, u.nombre as usuario_nombre, p.nombre as producto_nombre, p.codigo_sku_interno
       FROM kardex k
       LEFT JOIN usuarios u ON k.usuario_id = u.id
@@ -37,7 +37,7 @@ export const getByProducto = (req, res) => {
   }
 };
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -64,9 +64,9 @@ export const getAll = (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
-    const countResult = db.prepare(`SELECT COUNT(*) as total FROM kardex k ${whereClause}`).get(...params);
+    const countResult = await db.prepare(`SELECT COUNT(*) as total FROM kardex k ${whereClause}`).get(...params);
 
-    const movimientos = db.prepare(`
+    const movimientos = await db.prepare(`
       SELECT k.*, u.nombre as usuario_nombre, p.nombre as producto_nombre, p.codigo_sku_interno
       FROM kardex k
       LEFT JOIN usuarios u ON k.usuario_id = u.id

@@ -17,7 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
-    "better-sqlite3": "^9.2.2",
+    "sqlite3": "^5.1.6",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "cors": "^2.8.5",
@@ -27,6 +27,25 @@
     "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
+    "concurrently": "^8.2.2",
+    "pkg": "^5.11.5"
+  },
+  "pkg": {
+    "targets": [
+      "node18-win-x86",
+      "node18-win-x64"
+    ],
+    "outputPath": "./dist",
+    "scripts": [
+      "backend/**/*.js",
+      "frontend/dist/**/*"
+    ],
+    "assets": [
+      "frontend/dist/**/*",
+      "database/schema.sql",
+      ".env.example"
+    ],
+    "icon": "./icon.ico"
+  },
+  "bin": "backend/server.js"
 }

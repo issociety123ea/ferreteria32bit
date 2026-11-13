@@ -1,8 +1,8 @@
 import db from '../config/database.js';
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
-    const categorias = db.prepare('SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre ASC').all();
+    const categorias = await db.prepare('SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre ASC').all();
     res.json({ success: true, data: categorias });
   } catch (error) {
     console.error('Error al obtener categorías:', error);
@@ -10,7 +10,7 @@ export const getAll = (req, res) => {
   }
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { nombre, descripcion } = req.body;
 
@@ -18,12 +18,12 @@ export const create = (req, res) => {
       return res.status(400).json({ success: false, message: 'El nombre de la categoría es requerido' });
     }
 
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO categorias (nombre, descripcion)
       VALUES (?, ?)
     `).run(nombre, descripcion || null);
 
-    const categoria = db.prepare('SELECT * FROM categorias WHERE id = ?').get(result.lastInsertRowid);
+    const categoria = await db.prepare('SELECT * FROM categorias WHERE id = ?').get(result.lastID);
 
     res.status(201).json({ success: true, data: categoria, message: 'Categoría creada exitosamente' });
   } catch (error) {
@@ -35,17 +35,17 @@ export const create = (req, res) => {
   }
 };
 
-export const update = (req, res) => {
+export const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, descripcion, activo } = req.body;
 
-    const existing = db.prepare('SELECT * FROM categorias WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM categorias WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE categorias SET
         nombre = COALESCE(?, nombre),
         descripcion = ?,
@@ -58,7 +58,7 @@ export const update = (req, res) => {
       id
     );
 
-    const categoria = db.prepare('SELECT * FROM categorias WHERE id = ?').get(id);
+    const categoria = await db.prepare('SELECT * FROM categorias WHERE id = ?').get(id);
 
     res.json({ success: true, data: categoria, message: 'Categoría actualizada exitosamente' });
   } catch (error) {

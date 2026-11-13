@@ -1,8 +1,8 @@
 import db from '../config/database.js';
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
-    const proveedores = db.prepare('SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre ASC').all();
+    const proveedores = await db.prepare('SELECT * FROM proveedores WHERE activo = 1 ORDER BY nombre ASC').all();
     res.json({ success: true, data: proveedores });
   } catch (error) {
     console.error('Error al obtener proveedores:', error);
@@ -10,9 +10,9 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
-    const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(req.params.id);
+    const proveedor = await db.prepare('SELECT * FROM proveedores WHERE id = ?').get(req.params.id);
     if (!proveedor) {
       return res.status(404).json({ success: false, message: 'Proveedor no encontrado' });
     }
@@ -23,7 +23,7 @@ export const getById = (req, res) => {
   }
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { nombre, razon_social, nit, telefono, email, direccion, contacto_nombre } = req.body;
 
@@ -31,12 +31,12 @@ export const create = (req, res) => {
       return res.status(400).json({ success: false, message: 'El nombre del proveedor es requerido' });
     }
 
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO proveedores (nombre, razon_social, nit, telefono, email, direccion, contacto_nombre)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(nombre, razon_social || null, nit || null, telefono || null, email || null, direccion || null, contacto_nombre || null);
 
-    const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(result.lastInsertRowid);
+    const proveedor = await db.prepare('SELECT * FROM proveedores WHERE id = ?').get(result.lastID);
 
     res.status(201).json({ success: true, data: proveedor, message: 'Proveedor creado exitosamente' });
   } catch (error) {
@@ -45,17 +45,17 @@ export const create = (req, res) => {
   }
 };
 
-export const update = (req, res) => {
+export const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, razon_social, nit, telefono, email, direccion, contacto_nombre, activo } = req.body;
 
-    const existing = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM proveedores WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Proveedor no encontrado' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE proveedores SET
         nombre = COALESCE(?, nombre),
         razon_social = ?,
@@ -78,7 +78,7 @@ export const update = (req, res) => {
       id
     );
 
-    const proveedor = db.prepare('SELECT * FROM proveedores WHERE id = ?').get(id);
+    const proveedor = await db.prepare('SELECT * FROM proveedores WHERE id = ?').get(id);
 
     res.json({ success: true, data: proveedor, message: 'Proveedor actualizado exitosamente' });
   } catch (error) {

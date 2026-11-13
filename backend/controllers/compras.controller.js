@@ -1,11 +1,11 @@
 import db from '../config/database.js';
 
-const generateNumeroCompra = () => {
+const generateNumeroCompra = async () => {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
   const prefix = `COM-${dateStr}-`;
 
-  const lastCompra = db.prepare(
+  const lastCompra = await db.prepare(
     "SELECT numero_compra FROM compras_proveedores WHERE numero_compra LIKE ? ORDER BY id DESC LIMIT 1"
   ).get(`${prefix}%`);
 
@@ -18,7 +18,7 @@ const generateNumeroCompra = () => {
   return `${prefix}${String(nextNum).padStart(4, '0')}`;
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { proveedor_id, items, notas } = req.body;
 
@@ -30,37 +30,41 @@ export const create = (req, res) => {
       return res.status(400).json({ success: false, message: 'Debe incluir al menos un producto' });
     }
 
-    const createCompra = db.transaction(() => {
-      let totalCompra = 0;
-      const detalles = [];
+    let totalCompra = 0;
+    const detalles = [];
 
-      for (const item of items) {
-        const producto = db.prepare('SELECT id, nombre FROM productos WHERE id = ?').get(item.producto_id);
+    // Validate and calculate totals
+    for (const item of items) {
+      const producto = await db.prepare('SELECT id, nombre FROM productos WHERE id = ?').get(item.producto_id);
 
-        if (!producto) {
-          throw new Error(`Producto ID ${item.producto_id} no encontrado`);
-        }
-
-        const subtotal = item.cantidad * item.precio_costo;
-        totalCompra += subtotal;
-
-        detalles.push({
-          producto_id: producto.id,
-          cantidad: item.cantidad,
-          precio_costo: item.precio_costo,
-          subtotal
-        });
+      if (!producto) {
+        throw new Error(`Producto ID ${item.producto_id} no encontrado`);
       }
 
-      const numeroCompra = generateNumeroCompra();
+      const subtotal = item.cantidad * item.precio_costo;
+      totalCompra += subtotal;
+
+      detalles.push({
+        producto_id: producto.id,
+        cantidad: item.cantidad,
+        precio_costo: item.precio_costo,
+        subtotal
+      });
+    }
+
+    const numeroCompra = await generateNumeroCompra();
+
+    // Manual transaction
+    try {
+      await db.prepare('BEGIN TRANSACTION').run();
 
       // Insert compra
-      const compraResult = db.prepare(`
+      const compraResult = await db.prepare(`
         INSERT INTO compras_proveedores (numero_compra, proveedor_id, usuario_id, total_compra, estado, notas)
         VALUES (?, ?, ?, ?, 'COMPLETADA', ?)
       `).run(numeroCompra, proveedor_id, req.user.id, totalCompra, notas || null);
 
-      const compraId = compraResult.lastInsertRowid;
+      const compraId = compraResult.lastID;
 
       // Insert detalles (triggers will update stock and cost)
       const insertDetalle = db.prepare(`
@@ -69,53 +73,54 @@ export const create = (req, res) => {
       `);
 
       for (const det of detalles) {
-        insertDetalle.run(compraId, det.producto_id, det.cantidad, det.precio_costo, det.subtotal);
+        await insertDetalle.run(compraId, det.producto_id, det.cantidad, det.precio_costo, det.subtotal);
       }
 
       // Auditoría
-      db.prepare(
+      await db.prepare(
         'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
       ).run(req.user.id, 'CREAR_COMPRA', 'COMPRAS', 'compras_proveedores', compraId);
 
-      return { compraId, numeroCompra, totalCompra };
-    });
+      await db.prepare('COMMIT').run();
 
-    const result = createCompra();
+      const compra = await db.prepare(`
+        SELECT c.*, p.nombre as proveedor_nombre
+        FROM compras_proveedores c
+        LEFT JOIN proveedores p ON c.proveedor_id = p.id
+        WHERE c.id = ?
+      `).get(compraId);
 
-    const compra = db.prepare(`
-      SELECT c.*, p.nombre as proveedor_nombre
-      FROM compras_proveedores c
-      LEFT JOIN proveedores p ON c.proveedor_id = p.id
-      WHERE c.id = ?
-    `).get(result.compraId);
+      const compraDetalles = await db.prepare(`
+        SELECT dc.*, p.nombre as producto_nombre, p.codigo_sku_interno
+        FROM detalle_compras dc
+        JOIN productos p ON dc.producto_id = p.id
+        WHERE dc.compra_id = ?
+      `).all(compraId);
 
-    const detalles = db.prepare(`
-      SELECT dc.*, p.nombre as producto_nombre, p.codigo_sku_interno
-      FROM detalle_compras dc
-      JOIN productos p ON dc.producto_id = p.id
-      WHERE dc.compra_id = ?
-    `).all(result.compraId);
-
-    res.status(201).json({
-      success: true,
-      data: { ...compra, detalles },
-      message: `Compra ${result.numeroCompra} registrada exitosamente`
-    });
+      res.status(201).json({
+        success: true,
+        data: { ...compra, detalles: compraDetalles },
+        message: `Compra ${numeroCompra} registrada exitosamente`
+      });
+    } catch (error) {
+      await db.prepare('ROLLBACK').run();
+      throw error;
+    }
   } catch (error) {
     console.error('Error al crear compra:', error);
     res.status(400).json({ success: false, message: error.message || 'Error al registrar la compra' });
   }
 };
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    const countResult = db.prepare('SELECT COUNT(*) as total FROM compras_proveedores').get();
+    const countResult = await db.prepare('SELECT COUNT(*) as total FROM compras_proveedores').get();
 
-    const compras = db.prepare(`
+    const compras = await db.prepare(`
       SELECT c.*, p.nombre as proveedor_nombre, u.nombre as usuario_nombre
       FROM compras_proveedores c
       LEFT JOIN proveedores p ON c.proveedor_id = p.id
@@ -142,9 +147,9 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
-    const compra = db.prepare(`
+    const compra = await db.prepare(`
       SELECT c.*, p.nombre as proveedor_nombre, u.nombre as usuario_nombre
       FROM compras_proveedores c
       LEFT JOIN proveedores p ON c.proveedor_id = p.id
@@ -156,7 +161,7 @@ export const getById = (req, res) => {
       return res.status(404).json({ success: false, message: 'Compra no encontrada' });
     }
 
-    const detalles = db.prepare(`
+    const detalles = await db.prepare(`
       SELECT dc.*, p.nombre as producto_nombre, p.codigo_sku_interno
       FROM detalle_compras dc
       JOIN productos p ON dc.producto_id = p.id

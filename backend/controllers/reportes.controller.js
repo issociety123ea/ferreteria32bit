@@ -1,11 +1,11 @@
 import db from '../config/database.js';
 
-export const ventasDiarias = (req, res) => {
+export const ventasDiarias = async (req, res) => {
   try {
     const fechaDesde = req.query.fecha_desde || new Date().toISOString().slice(0, 10);
     const fechaHasta = req.query.fecha_hasta || fechaDesde;
 
-    const resumen = db.prepare(`
+    const resumen = await db.prepare(`
       SELECT
         DATE(fecha) as fecha,
         COUNT(*) as cantidad_ventas,
@@ -32,7 +32,7 @@ export const ventasDiarias = (req, res) => {
   }
 };
 
-export const corteCaja = (req, res) => {
+export const corteCaja = async (req, res) => {
   try {
     const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
     const usuarioId = req.query.usuario_id || req.user.id;
@@ -51,7 +51,7 @@ export const corteCaja = (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    const corte = db.prepare(`
+    const corte = await db.prepare(`
       SELECT
         COUNT(*) as cantidad_ventas,
         SUM(total) as total_ventas,
@@ -65,7 +65,7 @@ export const corteCaja = (req, res) => {
       WHERE ${whereClause}
     `).get(...params);
 
-    const ventasPorMetodo = db.prepare(`
+    const ventasPorMetodo = await db.prepare(`
       SELECT
         metodo_pago,
         COUNT(*) as cantidad,
@@ -76,7 +76,7 @@ export const corteCaja = (req, res) => {
     `).all(...params);
 
     const usuario = usuarioId
-      ? db.prepare('SELECT id, nombre, username FROM usuarios WHERE id = ?').get(usuarioId)
+      ? await db.prepare('SELECT id, nombre, username FROM usuarios WHERE id = ?').get(usuarioId)
       : null;
 
     res.json({
@@ -94,7 +94,7 @@ export const corteCaja = (req, res) => {
   }
 };
 
-export const productosMasVendidos = (req, res) => {
+export const productosMasVendidos = async (req, res) => {
   try {
     const fechaDesde = req.query.fecha_desde || '';
     const fechaHasta = req.query.fecha_hasta || '';
@@ -114,7 +114,7 @@ export const productosMasVendidos = (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    const productos = db.prepare(`
+    const productos = await db.prepare(`
       SELECT
         p.id,
         p.codigo_sku_interno,
@@ -142,9 +142,9 @@ export const productosMasVendidos = (req, res) => {
   }
 };
 
-export const stockBajo = (req, res) => {
+export const stockBajo = async (req, res) => {
   try {
-    const productos = db.prepare(`
+    const productos = await db.prepare(`
       SELECT
         p.id,
         p.codigo_sku_interno,
@@ -182,12 +182,12 @@ export const stockBajo = (req, res) => {
   }
 };
 
-export const resumenGeneral = (req, res) => {
+export const resumenGeneral = async (req, res) => {
   try {
     const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
 
     // Ventas del día
-    const ventasHoy = db.prepare(`
+    const ventasHoy = await db.prepare(`
       SELECT
         COUNT(*) as cantidad,
         COALESCE(SUM(total), 0) as total,
@@ -198,7 +198,7 @@ export const resumenGeneral = (req, res) => {
 
     // Ventas del mes
     const mesActual = fecha.slice(0, 7);
-    const ventasMes = db.prepare(`
+    const ventasMes = await db.prepare(`
       SELECT
         COUNT(*) as cantidad,
         COALESCE(SUM(total), 0) as total,
@@ -208,21 +208,21 @@ export const resumenGeneral = (req, res) => {
     `).get(mesActual);
 
     // Productos con stock bajo
-    const stockBajo = db.prepare(`
+    const stockBajo = await db.prepare(`
       SELECT COUNT(*) as cantidad
       FROM productos
       WHERE activo = 1 AND stock_actual <= stock_minimo
     `).get();
 
     // Total productos
-    const totalProductos = db.prepare(`
+    const totalProductos = await db.prepare(`
       SELECT COUNT(*) as total, COALESCE(SUM(stock_actual), 0) as valor_inventario_unidades
       FROM productos
       WHERE activo = 1
     `).get();
 
     // Valor del inventario
-    const valorInventario = db.prepare(`
+    const valorInventario = await db.prepare(`
       SELECT COALESCE(SUM(stock_actual * precio_costo), 0) as valor_costo,
              COALESCE(SUM(stock_actual * precio_venta), 0) as valor_venta
       FROM productos
@@ -230,7 +230,7 @@ export const resumenGeneral = (req, res) => {
     `).get();
 
     // Total clientes
-    const totalClientes = db.prepare('SELECT COUNT(*) as total FROM clientes WHERE activo = 1').get();
+    const totalClientes = await db.prepare('SELECT COUNT(*) as total FROM clientes WHERE activo = 1').get();
 
     res.json({
       success: true,

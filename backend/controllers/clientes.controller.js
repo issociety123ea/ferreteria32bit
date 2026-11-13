@@ -1,6 +1,6 @@
 import db from '../config/database.js';
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -18,9 +18,9 @@ export const getAll = (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
-    const countResult = db.prepare(`SELECT COUNT(*) as total FROM clientes ${whereClause}`).get(...params);
+    const countResult = await db.prepare(`SELECT COUNT(*) as total FROM clientes ${whereClause}`).get(...params);
 
-    const clientes = db.prepare(`
+    const clientes = await db.prepare(`
       SELECT *
       FROM clientes
       ${whereClause}
@@ -46,16 +46,16 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
-    const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(req.params.id);
+    const cliente = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(req.params.id);
 
     if (!cliente) {
       return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
     }
 
     // Get purchase history
-    const historial = db.prepare(`
+    const historial = await db.prepare(`
       SELECT COUNT(*) as total_compras, SUM(total) as monto_total, MAX(fecha) as ultima_compra
       FROM ventas
       WHERE cliente_id = ? AND estado = 'COMPLETADA'
@@ -74,7 +74,7 @@ export const getById = (req, res) => {
   }
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { nombre_razon_social, nit_ci, telefono, direccion, tipo_cliente, limite_credito } = req.body;
 
@@ -82,7 +82,7 @@ export const create = (req, res) => {
       return res.status(400).json({ success: false, message: 'El nombre o razón social es requerido' });
     }
 
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO clientes (nombre_razon_social, nit_ci, telefono, direccion, tipo_cliente, limite_credito)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
@@ -94,7 +94,7 @@ export const create = (req, res) => {
       limite_credito || 0
     );
 
-    const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(result.lastInsertRowid);
+    const cliente = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(result.lastID);
 
     res.status(201).json({ success: true, data: cliente, message: 'Cliente creado exitosamente' });
   } catch (error) {
@@ -103,17 +103,17 @@ export const create = (req, res) => {
   }
 };
 
-export const update = (req, res) => {
+export const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre_razon_social, nit_ci, telefono, direccion, tipo_cliente, limite_credito, activo } = req.body;
 
-    const existing = db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE clientes SET
         nombre_razon_social = COALESCE(?, nombre_razon_social),
         nit_ci = ?,
@@ -134,7 +134,7 @@ export const update = (req, res) => {
       id
     );
 
-    const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    const cliente = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
 
     res.json({ success: true, data: cliente, message: 'Cliente actualizado exitosamente' });
   } catch (error) {
@@ -143,7 +143,7 @@ export const update = (req, res) => {
   }
 };
 
-export const search = (req, res) => {
+export const search = async (req, res) => {
   try {
     const q = req.query.q || '';
     const limit = parseInt(req.query.limit) || 20;
@@ -153,7 +153,7 @@ export const search = (req, res) => {
     }
 
     const searchParam = `%${q}%`;
-    const clientes = db.prepare(`
+    const clientes = await db.prepare(`
       SELECT id, nombre_razon_social, nit_ci, telefono, tipo_cliente
       FROM clientes
       WHERE activo = 1
@@ -169,18 +169,18 @@ export const search = (req, res) => {
   }
 };
 
-export const getProductosFrecuentes = (req, res) => {
+export const getProductosFrecuentes = async (req, res) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit) || 10;
 
-    const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    const cliente = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
     if (!cliente) {
       return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
     }
 
     // Obtener productos más comprados por este cliente
-    const productos = db.prepare(`
+    const productos = await db.prepare(`
       SELECT
         p.id,
         p.nombre,
