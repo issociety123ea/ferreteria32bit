@@ -1,5 +1,5 @@
 const express = require('express');
-const { getByProducto, offset, getAll, offset } = require('../controllers/kardex.controller.js');
+const { getByProducto, getAll } = require('../controllers/kardex.controller.js');
 const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
 
 const router = express.Router();

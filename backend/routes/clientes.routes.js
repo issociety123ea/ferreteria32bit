@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAll, offset, getById, create, update, search, getProductosFrecuentes } = require('../controllers/clientes.controller.js');
+const { getAll, getById, create, update, search, getProductosFrecuentes } = require('../controllers/clientes.controller.js');
 const { authenticateToken  } = require('../middleware/auth.js');
 
 const router = express.Router();

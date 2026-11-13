@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateNumeroCompra, create, getAll, offset, getById } = require('../controllers/compras.controller.js');
+const { generateNumeroCompra, create, getAll, getById } = require('../controllers/compras.controller.js');
 const { authenticateToken, isAdmin  } = require('../middleware/auth.js');
 
 const router = express.Router();
