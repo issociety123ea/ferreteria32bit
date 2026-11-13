@@ -1,0 +1,57 @@
+# FERRETERÍA POS - Windows 7 32-bits + Node.js 12.22.12
+
+## 📋 REQUISITOS PREVIOS
+
+**OBLIGATORIO**: Node.js 12.22.12 (versión 32-bits)
+
+Descargue e instale manualmente:
+```
+https://nodejs.org/dist/v12.22.12/node-v12.22.12-x86.msi
+```
+
+Después de instalar, reinicie la computadora.
+
+---
+
+## 🚀 USO
+
+### PASO 1: INSTALACIÓN (Primera vez)
+
+```batch
+1. Haga clic derecho en: INSTALAR.bat
+2. Seleccione: "Ejecutar como administrador"
+3. Haga clic en "Sí"
+4. Espere 60-90 minutos (instalación completa)
+
+El script instala automáticamente:
+✓ Visual C++ Build Tools (si falta)
+✓ Dependencias del sistema
+✓ Frontend compilado
+✓ Base de datos
+```
+
+### PASO 2: INICIAR EL SISTEMA
+
+```batch
+Doble clic en: INICIAR.bat
+```
+
+**Resultado**:
+- Servidor inicia en http://localhost:3000
+- Usuario: admin
+- Contraseña: admin123
+
+---
+
+## 📁 ARCHIVOS
+
+| Archivo | Propósito |
+|---------|-----------|
+| `INSTALAR.bat` | Instalación automática (ejecutar una sola vez como admin) |
+| `INICIAR.bat` | Iniciar el sistema (ejecutar cada vez que quiera usar) |
+
+---
+
+## ✅ LISTO
+
+Sistema completo para Windows 7 32-bits + Node.js 12.22.12
