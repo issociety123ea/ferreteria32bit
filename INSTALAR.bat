@@ -68,9 +68,9 @@ echo OK - Frontend instalado
 echo.
 
 REM Compilar frontend
-echo Compilando frontend (esto puede tomar 10-15 minutos)...
+echo Compilando frontend (esto puede tomar 5-10 minutos)...
 echo.
-call npm run build
+call node build-simple.js
 if %errorlevel% neq 0 (
   echo.
   echo ERROR: Fallo al compilar frontend
