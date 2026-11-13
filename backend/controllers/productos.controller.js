@@ -363,4 +363,4 @@ const getFrecuentes = async (req, res) => {
 };
 
 
-module.exports = { getAll, offset, getById, create, update, adjustStock, search, getFrecuentes };
+module.exports = { getAll, getById, create, update, adjustStock, search, getFrecuentes };

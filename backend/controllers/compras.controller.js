@@ -176,4 +176,4 @@ const getById = async (req, res) => {
 };
 
 
-module.exports = { generateNumeroCompra, create, getAll, offset, getById };
+module.exports = { generateNumeroCompra, create, getAll, getById };

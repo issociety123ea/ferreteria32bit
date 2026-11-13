@@ -208,4 +208,4 @@ const getProductosFrecuentes = async (req, res) => {
 };
 
 
-module.exports = { getAll, offset, getById, create, update, search, getProductosFrecuentes };
+module.exports = { getAll, getById, create, update, search, getProductosFrecuentes };

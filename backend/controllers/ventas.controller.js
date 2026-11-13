@@ -314,4 +314,4 @@ const annulSale = async (req, res) => {
 };
 
 
-module.exports = { generateNumeroVenta, create, getAll, offset, getById, annulSale };
+module.exports = { generateNumeroVenta, create, getAll, getById, annulSale };

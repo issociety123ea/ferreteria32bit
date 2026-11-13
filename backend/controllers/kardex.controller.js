@@ -95,4 +95,4 @@ const getAll = async (req, res) => {
 };
 
 
-module.exports = { getByProducto, offset, getAll, offset };
+module.exports = { getByProducto, getAll };
