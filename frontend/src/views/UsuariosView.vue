@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { usuariosApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import { PlusIcon, PencilIcon, XMarkIcon, UserIcon } from '@heroicons/vue/24/outline'
+
+const { success, error } = useToast()
 
 const usuarios = ref([])
 const loading = ref(false)
@@ -37,9 +40,9 @@ const loadUsuarios = async () => {
   try {
     const response = await usuariosApi.getAll()
     usuarios.value = response.data.data
-  } catch (error) {
-    console.error('Error loading users:', error)
-    alert('Error al cargar usuarios')
+  } catch (err) {
+    console.error('Error loading users:', err)
+    error('Error al cargar usuarios')
   } finally {
     loading.value = false
   }
@@ -73,12 +76,12 @@ const openEditModal = (usuario) => {
 
 const saveUsuario = async () => {
   if (!form.value.nombre || !form.value.username) {
-    alert('Complete los campos requeridos')
+    error('Complete los campos requeridos')
     return
   }
 
   if (modalMode.value === 'create' && !form.value.password) {
-    alert('La contraseña es requerida para nuevos usuarios')
+    error('La contraseña es requerida para nuevos usuarios')
     return
   }
 
@@ -90,30 +93,34 @@ const saveUsuario = async () => {
 
     if (modalMode.value === 'create') {
       await usuariosApi.create(data)
+      success('Usuario creado exitosamente')
     } else {
       await usuariosApi.update(data.id, data)
+      success('Usuario actualizado exitosamente')
     }
 
     showModal.value = false
     loadUsuarios()
-  } catch (error) {
-    console.error('Error saving user:', error)
-    alert(error.response?.data?.message || 'Error al guardar usuario')
+  } catch (err) {
+    console.error('Error saving user:', err)
+    error(err.response?.data?.message || 'Error al guardar usuario')
   } finally {
     loading.value = false
   }
 }
 
 const toggleActivo = async (usuario) => {
-  if (!confirm(`¿${usuario.activo ? 'Desactivar' : 'Activar'} a ${usuario.nombre}?`)) {
+  const confirmResult = await useToast().confirm(`¿${usuario.activo ? 'Desactivar' : 'Activar'} a ${usuario.nombre}?`)
+  if (!confirmResult) {
     return
   }
 
   try {
     await usuariosApi.update(usuario.id, { activo: !usuario.activo })
+    success('Estado del usuario actualizado')
     loadUsuarios()
-  } catch (error) {
-    alert(error.response?.data?.message || 'Error al cambiar estado del usuario')
+  } catch (err) {
+    error(err.response?.data?.message || 'Error al cambiar estado del usuario')
   }
 }
 

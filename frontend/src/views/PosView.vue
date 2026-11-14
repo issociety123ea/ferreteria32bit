@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { usePosStore } from '@/stores/pos.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { clientesApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import {
   MagnifyingGlassIcon,
   ShoppingCartIcon,
@@ -15,6 +16,8 @@ import {
   PrinterIcon,
   PlusIcon
 } from '@heroicons/vue/24/outline'
+
+const { success, error, warning } = useToast()
 
 const posStore = usePosStore()
 const authStore = useAuthStore()
@@ -92,7 +95,7 @@ const handleSearch = () => {
 const addProductToCart = (producto) => {
   const result = posStore.addToCart(producto)
   if (!result.success) {
-    alert(result.message)
+    error(result.message)
   } else {
     searchQuery.value = ''
     searchResults.value = []
@@ -105,12 +108,13 @@ const updateItemQuantity = (index, value) => {
 
   const result = posStore.updateQuantity(index, cantidad)
   if (!result.success) {
-    alert(result.message)
+    error(result.message)
   }
 }
 
-const removeItem = (index) => {
-  if (confirm('¿Eliminar este producto del carrito?')) {
+const removeItem = async (index) => {
+  const result = await useToast().confirm('¿Eliminar este producto del carrito?')
+  if (result) {
     posStore.removeFromCart(index)
   }
 }
@@ -154,7 +158,7 @@ const openNewClientModal = () => {
 
 const saveNewClient = async () => {
   if (!newClientForm.value.nombre_razon_social) {
-    alert('El nombre del cliente es requerido')
+    error('El nombre del cliente es requerido')
     return
   }
 
@@ -165,16 +169,16 @@ const saveNewClient = async () => {
       posStore.setClient(client)
       clientSearch.value = client.nombre_razon_social
       showNewClientModal.value = false
-      alert('Cliente agregado exitosamente')
+      success('Cliente agregado exitosamente')
     }
-  } catch (error) {
-    alert(error.response?.data?.message || 'Error al crear cliente')
+  } catch (err) {
+    error(err.response?.data?.message || 'Error al crear cliente')
   }
 }
 
 const openPaymentModal = () => {
   if (cartItems.value.length === 0) {
-    alert('El carrito está vacío')
+    error('El carrito está vacío')
     return
   }
 
@@ -293,12 +297,12 @@ const printReceipt = (venta, detalles) => {
 
 const processPayment = async () => {
   if (paymentMethod.value === 'EFECTIVO' && montoRecibido.value < cartTotal.value) {
-    alert('El monto recibido es insuficiente')
+    error('El monto recibido es insuficiente')
     return
   }
 
   if (paymentMethod.value === 'CREDITO' && !selectedClient.value) {
-    alert('Debe seleccionar un cliente para ventas al fiado')
+    error('Debe seleccionar un cliente para ventas al fiado')
     return
   }
 
@@ -321,7 +325,7 @@ const processPayment = async () => {
     // IMPRIMIR RECIBO AUTOMÁTICAMENTE
     printReceipt(result.venta, result.venta.detalles || cartItems.value)
 
-    alert(`Venta ${result.venta.numero_venta} completada exitosamente!`)
+    success(`Venta ${result.venta.numero_venta} completada exitosamente!`)
 
     // Reset form
     searchQuery.value = ''
@@ -330,7 +334,7 @@ const processPayment = async () => {
     montoRecibido.value = 0
     paymentMethod.value = 'EFECTIVO'
   } else {
-    alert(result.message)
+    error(result.message)
   }
 }
 

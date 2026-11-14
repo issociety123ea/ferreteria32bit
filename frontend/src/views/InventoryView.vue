@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { productosApi, categoriasApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -9,6 +10,8 @@ import {
   FunnelIcon,
   XMarkIcon
 } from '@heroicons/vue/24/outline'
+
+const { success, error } = useToast()
 
 const productos = ref([])
 const categorias = ref([])
@@ -80,9 +83,9 @@ const loadProductos = async () => {
     const response = await productosApi.getAll({ page: currentPage.value, limit })
     productos.value = response.data.data.items
     totalPages.value = response.data.data.pagination.totalPages
-  } catch (error) {
-    console.error('Error loading products:', error)
-    alert('Error al cargar productos')
+  } catch (err) {
+    console.error('Error loading products:', err)
+    error('Error al cargar productos')
   } finally {
     loading.value = false
   }
@@ -151,18 +154,19 @@ const openEditModal = (producto) => {
 }
 
 const deleteProducto = async (id) => {
-  if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+  const confirmResult = await useToast().confirm('¿Estás seguro de que deseas eliminar este producto?')
+  if (!confirmResult) {
     return
   }
 
   loading.value = true
   try {
     await productosApi.delete(id)
-    alert('Producto eliminado exitosamente')
+    success('Producto eliminado exitosamente')
     await loadProductos()
-  } catch (error) {
-    console.error('Error al eliminar producto:', error)
-    alert(error.response?.data?.message || 'Error al eliminar el producto')
+  } catch (err) {
+    console.error('Error al eliminar producto:', err)
+    error(err.response?.data?.message || 'Error al eliminar el producto')
   } finally {
     loading.value = false
   }
@@ -170,7 +174,7 @@ const deleteProducto = async (id) => {
 
 const saveProducto = async () => {
   if (!form.value.codigo_sku_interno || !form.value.nombre || !form.value.precio_venta) {
-    alert('Complete los campos requeridos: Código, Nombre y Precio de Venta')
+    error('Complete los campos requeridos: Código, Nombre y Precio de Venta')
     return
   }
 
@@ -205,10 +209,10 @@ const saveProducto = async () => {
 
     showModal.value = false
     await loadProductos()
-    alert('Producto guardado exitosamente')
-  } catch (error) {
-    console.error('Error saving product:', error)
-    alert(error.response?.data?.message || 'Error al guardar producto')
+    success('Producto guardado exitosamente')
+  } catch (err) {
+    console.error('Error saving product:', err)
+    error(err.response?.data?.message || 'Error al guardar producto')
   } finally {
     loading.value = false
   }

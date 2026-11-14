@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { proveedoresApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import {
   PlusIcon,
   PencilIcon,
@@ -11,6 +12,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const authStore = useAuthStore()
+const { success, error } = useToast()
 
 const proveedores = ref([])
 const loading = ref(false)
@@ -46,9 +48,9 @@ const loadProveedores = async () => {
   try {
     const response = await proveedoresApi.getAll()
     proveedores.value = response.data.data
-  } catch (error) {
-    console.error('Error al cargar proveedores:', error)
-    alert('Error al cargar proveedores')
+  } catch (err) {
+    console.error('Error al cargar proveedores:', err)
+    error('Error al cargar proveedores')
   } finally {
     loading.value = false
   }
@@ -65,47 +67,48 @@ const openEditModal = async (proveedor) => {
     formData.value = { ...response.data.data }
     editingId.value = proveedor.id
     showModal.value = true
-  } catch (error) {
-    console.error('Error al cargar proveedor:', error)
-    alert('Error al cargar los datos del proveedor')
+  } catch (err) {
+    console.error('Error al cargar proveedor:', err)
+    error('Error al cargar los datos del proveedor')
   }
 }
 
 const saveProveedor = async () => {
   if (!formData.value.nombre.trim()) {
-    alert('El nombre del proveedor es requerido')
+    error('El nombre del proveedor es requerido')
     return
   }
 
   try {
     if (editingId.value) {
       await proveedoresApi.update(editingId.value, formData.value)
-      alert('Proveedor actualizado exitosamente')
+      success('Proveedor actualizado exitosamente')
     } else {
       await proveedoresApi.create(formData.value)
-      alert('Proveedor creado exitosamente')
+      success('Proveedor creado exitosamente')
     }
     showModal.value = false
     await loadProveedores()
-  } catch (error) {
-    console.error('Error al guardar proveedor:', error)
-    alert(error.response?.data?.message || 'Error al guardar el proveedor')
+  } catch (err) {
+    console.error('Error al guardar proveedor:', err)
+    error(err.response?.data?.message || 'Error al guardar el proveedor')
   }
 }
 
 const deleteProveedor = async (id) => {
-  if (!confirm('¿Estás seguro de que deseas eliminar este proveedor?')) {
+  const confirmResult = await useToast().confirm('¿Estás seguro de que deseas eliminar este proveedor?')
+  if (!confirmResult) {
     return
   }
 
   try {
     // Usar update con activo: false para soft delete
     await proveedoresApi.update(id, { activo: false })
-    alert('Proveedor eliminado exitosamente')
+    success('Proveedor eliminado exitosamente')
     await loadProveedores()
-  } catch (error) {
-    console.error('Error al eliminar proveedor:', error)
-    alert('Error al eliminar el proveedor')
+  } catch (err) {
+    console.error('Error al eliminar proveedor:', err)
+    error('Error al eliminar el proveedor')
   }
 }
 

@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { clientesApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import { MagnifyingGlassIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+
+const { success, error } = useToast()
 
 const clientes = ref([])
 const loading = ref(false)
@@ -52,18 +55,19 @@ const openEditModal = (cliente) => {
 }
 
 const deleteCliente = async (id) => {
-  if (!confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+  const confirmResult = await useToast().confirm('¿Estás seguro de que deseas eliminar este cliente?')
+  if (!confirmResult) {
     return
   }
 
   loading.value = true
   try {
     await clientesApi.delete(id)
-    alert('Cliente eliminado exitosamente')
+    success('Cliente eliminado exitosamente')
     loadClientes()
-  } catch (error) {
-    console.error('Error al eliminar cliente:', error)
-    alert(error.response?.data?.message || 'Error al eliminar el cliente')
+  } catch (err) {
+    console.error('Error al eliminar cliente:', err)
+    error(err.response?.data?.message || 'Error al eliminar el cliente')
   } finally {
     loading.value = false
   }
@@ -71,7 +75,7 @@ const deleteCliente = async (id) => {
 
 const saveCliente = async () => {
   if (!form.value.nombre_razon_social) {
-    alert('El nombre es requerido')
+    error('El nombre es requerido')
     return
   }
 
@@ -79,13 +83,15 @@ const saveCliente = async () => {
   try {
     if (modalMode.value === 'create') {
       await clientesApi.create(form.value)
+      success('Cliente creado exitosamente')
     } else {
       await clientesApi.update(form.value.id, form.value)
+      success('Cliente actualizado exitosamente')
     }
     showModal.value = false
     loadClientes()
-  } catch (error) {
-    alert(error.response?.data?.message || 'Error al guardar cliente')
+  } catch (err) {
+    error(err.response?.data?.message || 'Error al guardar cliente')
   } finally {
     loading.value = false
   }

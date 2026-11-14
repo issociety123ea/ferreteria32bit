@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { creditosApi, clientesApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import {
   PlusIcon,
   PencilIcon,
@@ -13,6 +14,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const authStore = useAuthStore()
+const { success, error } = useToast()
 
 const creditos = ref([])
 const clientes = ref([])
@@ -65,9 +67,9 @@ const loadCreditos = async () => {
   try {
     const response = await creditosApi.getAll({ estado: 'PENDIENTE' })
     creditos.value = response.data.data.items || []
-  } catch (error) {
-    console.error('Error al cargar créditos:', error)
-    alert('Error al cargar créditos')
+  } catch (err) {
+    console.error('Error al cargar créditos:', err)
+    error('Error al cargar créditos')
   } finally {
     loading.value = false
   }
@@ -96,54 +98,55 @@ const openPagoModal = (credito) => {
 
 const saveCredito = async () => {
   if (!formData.value.cliente_id) {
-    alert('Debes seleccionar un cliente')
+    error('Debes seleccionar un cliente')
     return
   }
   if (formData.value.monto_total <= 0) {
-    alert('El monto debe ser mayor a 0')
+    error('El monto debe ser mayor a 0')
     return
   }
 
   try {
     // Nota: Esta función es para demostración. Los créditos se crean automáticamente
     // al hacer una venta con método CREDITO
-    alert('Los créditos se crean automáticamente al realizar una venta con método "A Fiar"')
+    success('Los créditos se crean automáticamente al realizar una venta con método "A Fiar"')
     showModal.value = false
-  } catch (error) {
-    console.error('Error al guardar crédito:', error)
-    alert('Error al guardar el crédito')
+  } catch (err) {
+    console.error('Error al guardar crédito:', err)
+    error('Error al guardar el crédito')
   }
 }
 
 const registrarPago = async () => {
   if (!pagoData.value.monto_pagado || pagoData.value.monto_pagado <= 0) {
-    alert('El monto pagado debe ser mayor a 0')
+    error('El monto pagado debe ser mayor a 0')
     return
   }
 
   try {
     await creditosApi.registrarPago(pagoData.value)
-    alert('Pago registrado exitosamente')
+    success('Pago registrado exitosamente')
     showPagoModal.value = false
     await loadCreditos()
-  } catch (error) {
-    console.error('Error al registrar pago:', error)
-    alert(error.response?.data?.message || 'Error al registrar el pago')
+  } catch (err) {
+    console.error('Error al registrar pago:', err)
+    error(err.response?.data?.message || 'Error al registrar el pago')
   }
 }
 
 const cancelarCredito = async (id) => {
-  if (!confirm('¿Estás seguro de que deseas cancelar este crédito? (Solo puede hacerse sin pagos registrados)')) {
+  const result = await useToast().confirm('¿Estás seguro de que deseas cancelar este crédito? (Solo puede hacerse sin pagos registrados)')
+  if (!result) {
     return
   }
 
   try {
     await creditosApi.cancelarCredito(id, { motivo: 'Cancelado por el usuario' })
-    alert('Crédito cancelado exitosamente')
+    success('Crédito cancelado exitosamente')
     await loadCreditos()
-  } catch (error) {
-    console.error('Error al cancelar crédito:', error)
-    alert(error.response?.data?.message || 'Error al cancelar el crédito')
+  } catch (err) {
+    console.error('Error al cancelar crédito:', err)
+    error(err.response?.data?.message || 'Error al cancelar el crédito')
   }
 }
 

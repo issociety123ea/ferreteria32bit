@@ -214,8 +214,10 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { ventasApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 
 const authStore = useAuthStore()
+const { success, error } = useToast()
 
 const loading = ref(false)
 const ventas = ref([])
@@ -256,9 +258,9 @@ const loadHistorial = async () => {
     const response = await ventasApi.getMiHistorial({ fecha: selectedDate.value })
     ventas.value = response.data.data.ventas
     resumen.value = response.data.data.resumen
-  } catch (error) {
-    console.error('Error loading historial:', error)
-    alert('Error al cargar el historial')
+  } catch (err) {
+    console.error('Error loading historial:', err)
+    error('Error al cargar el historial')
   } finally {
     loading.value = false
   }
@@ -270,9 +272,9 @@ const verDetalle = async (venta) => {
     selectedVenta.value = response.data.data
     detalleItems.value = response.data.data.detalles || []
     showDetalleModal.value = true
-  } catch (error) {
-    console.error('Error loading detalle:', error)
-    alert('Error al cargar el detalle de la venta')
+  } catch (err) {
+    console.error('Error loading detalle:', err)
+    error('Error al cargar el detalle de la venta')
   }
 }
 
@@ -380,7 +382,8 @@ const reimprimirRecibo = (venta) => {
 }
 
 const anularVenta = async (venta) => {
-  if (!confirm(`¿Estás seguro de que deseas ANULAR la venta ${venta.numero_venta}?\n\nEsta acción:\n- Devolvería el stock de los productos\n- Anularía cualquier crédito asociado\n- Se registraría en auditoría`)) {
+  const confirmResult = await useToast().confirm(`¿Estás seguro de que deseas ANULAR la venta ${venta.numero_venta}?\n\nEsta acción:\n- Devolvería el stock de los productos\n- Anularía cualquier crédito asociado\n- Se registraría en auditoría`)
+  if (!confirmResult) {
     return
   }
 
@@ -389,12 +392,12 @@ const anularVenta = async (venta) => {
 
   try {
     await ventasApi.anular(venta.id, { razon })
-    alert(`✓ Venta ${venta.numero_venta} anulada exitosamente`)
+    success(`Venta ${venta.numero_venta} anulada exitosamente`)
     showDetalleModal.value = false
     await loadHistorial()
-  } catch (error) {
-    console.error('Error al anular venta:', error)
-    alert(error.response?.data?.message || 'Error al anular la venta')
+  } catch (err) {
+    console.error('Error al anular venta:', err)
+    error(err.response?.data?.message || 'Error al anular la venta')
   }
 }
 

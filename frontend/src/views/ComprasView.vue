@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { comprasApi, proveedoresApi, productosApi } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import { PlusIcon, ShoppingBagIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+
+const { success, error } = useToast()
 
 const compras = ref([])
 const proveedores = ref([])
@@ -99,12 +102,12 @@ const openCreateModal = () => {
 
 const saveCompra = async () => {
   if (!form.value.proveedor_id) {
-    alert('Debe seleccionar un proveedor')
+    error('Debe seleccionar un proveedor')
     return
   }
 
   if (form.value.items.length === 0) {
-    alert('Debe agregar al menos un producto')
+    error('Debe agregar al menos un producto')
     return
   }
 
@@ -114,10 +117,10 @@ const saveCompra = async () => {
     await comprasApi.create(form.value)
     showModal.value = false
     loadCompras()
-    alert('Compra registrada exitosamente')
-  } catch (error) {
-    console.error('Error saving purchase:', error)
-    alert(error.response?.data?.message || 'Error al registrar compra')
+    success('Compra registrada exitosamente')
+  } catch (err) {
+    console.error('Error saving purchase:', err)
+    error(err.response?.data?.message || 'Error al registrar compra')
   } finally {
     loading.value = false
   }
