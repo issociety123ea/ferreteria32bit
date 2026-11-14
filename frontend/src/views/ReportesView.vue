@@ -167,12 +167,12 @@ onMounted(() => {
           <div class="text-2xl font-bold text-emerald-700">{{ formatCurrency(corteCaja.resumen.total_efectivo) }}</div>
         </div>
         <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <div class="text-sm text-blue-700 mb-1">Total Tarjeta</div>
-          <div class="text-2xl font-bold text-blue-700">{{ formatCurrency(corteCaja.resumen.total_tarjeta) }}</div>
+          <div class="text-sm text-blue-700 mb-1">Total QR</div>
+          <div class="text-2xl font-bold text-blue-700">{{ formatCurrency(corteCaja.resumen.total_qr) }}</div>
         </div>
         <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <div class="text-sm text-purple-700 mb-1">Total QR</div>
-          <div class="text-2xl font-bold text-purple-700">{{ formatCurrency(corteCaja.resumen.total_qr) }}</div>
+          <div class="text-sm text-purple-700 mb-1">Total Crédito / Fiado</div>
+          <div class="text-2xl font-bold text-purple-700">{{ formatCurrency(corteCaja.resumen.total_credito) }}</div>
         </div>
       </div>
 
