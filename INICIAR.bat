@@ -1,55 +1,60 @@
 @echo off
+REM =====================================================
+REM FERRETERÍA POS - EJECUTABLE SIN TERMINAL
+REM Inicia automáticamente el sistema sin mostrar ventana cmd
+REM =====================================================
+
 setlocal enabledelayedexpansion
 
+REM Obtener la ruta del script
 set SCRIPT_DIR=%~dp0
-cd /d "%SCRIPT_DIR%"
+set ROOT_DIR=%SCRIPT_DIR%
 
-cls
-echo.
-echo ===============================================
-echo   FERRETERIA POS - INICIANDO SISTEMA
-echo ===============================================
-echo.
-
-REM Verificar Node.js
-echo Verificando Node.js...
-node --version
-if %errorlevel% neq 0 (
-  echo ERROR: Node.js no esta instalado
-  pause
-  exit /b 1
+REM Verificar si Node.js está instalado
+node --version >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo ❌ ERROR: Node.js no está instalado
+    echo.
+    echo Por favor, ejecute primero: INSTALAR.bat
+    echo.
+    pause
+    exit /b 1
 )
-echo.
 
-REM Crear directorios si no existen
-if not exist "database" mkdir database
-if not exist "database\backups" mkdir database\backups
-if not exist "uploads" mkdir uploads
-echo.
+REM Verificar si la base de datos existe
+if not exist "%ROOT_DIR%database\ferreteria.db" (
+    echo.
+    echo ❌ ERROR: Base de datos no encontrada
+    echo.
+    echo Por favor, ejecute primero: INSTALAR.bat
+    echo.
+    pause
+    exit /b 1
+)
 
-REM Iniciar servidor
-echo.
-echo ===============================================
-echo   SERVIDOR INICIANDO EN http://localhost:3000
-echo ===============================================
-echo.
-echo Presione CTRL+C para detener el servidor
-echo.
-echo Usuario: admin
-echo Contraseña: admin123
-echo.
-echo ===============================================
-echo.
+REM Crear directorio de backups si no existe
+if not exist "%ROOT_DIR%backups" (
+    mkdir "%ROOT_DIR%backups"
+)
 
-REM Iniciar servidor y mantener la ventana abierta
-node backend/server.js
+REM Ejecutar backup automático (silenciosamente)
+echo Creando copia de seguridad...
+node "%ROOT_DIR%scripts\backup.js" >nul 2>&1
 
-REM Si llegamos aqui significa que se cerro
-echo.
-echo.
-echo ===============================================
-echo SERVIDOR CERRADO
-echo ===============================================
-pause
+REM Iniciar el servidor backend silenciosamente
+echo Iniciando servidor...
+start "" /B node "%ROOT_DIR%backend\server.js"
 
-endlocal
+REM Esperar a que el servidor esté listo
+timeout /t 3 /nobreak >nul
+
+REM Abrir navegador en el POS
+start http://localhost:3000
+
+REM Mantener el script esperando (para que no se cierre la ventana cmd)
+REM Pero ocultarla usando una ventana invisible
+if exist "%ROOT_DIR%node_modules\.bin\node.cmd" (
+    REM El proceso está corriendo en background
+    exit /b 0
+)

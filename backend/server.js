@@ -8,6 +8,15 @@ const fs = require('fs');
 
 const { errorHandler } = require('./middleware/errorHandler.js');
 
+// Ejecutar backup automático al iniciar
+try {
+  const backupScript = require('../scripts/backup.js');
+  console.log('🔄 Iniciando backup automático...');
+  backupScript.createBackup();
+} catch (error) {
+  console.warn('⚠️  No se pudo ejecutar backup automático:', error.message);
+}
+
 // Import routes
 const authRoutes = require('./routes/auth.routes.js');
 const productosRoutes = require('./routes/productos.routes.js');
