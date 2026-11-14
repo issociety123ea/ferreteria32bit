@@ -362,5 +362,31 @@ const getFrecuentes = async (req, res) => {
   }
 };
 
+const deleteProducto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await db.prepare('SELECT * FROM productos WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    // Soft delete: set activo = 0
+    await db.prepare('UPDATE productos SET activo = 0 WHERE id = ?').run(id);
+
+    // Auditoría
+    await db.prepare(
+      'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, datos_anteriores) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.user.id, 'ELIMINAR_PRODUCTO', 'INVENTARIO', 'productos', id, JSON.stringify(existing));
+
+    res.json({ success: true, message: 'Producto eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error al eliminar producto:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar el producto' });
+  }
+};
+
+module.exports = { getAll, search, getFrecuentes, getById, create, update, adjustStock, deleteProducto };
+
 
 module.exports = { getAll, getById, create, update, adjustStock, search, getFrecuentes };

@@ -207,5 +207,28 @@ const getProductosFrecuentes = async (req, res) => {
   }
 };
 
+const deleteCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-module.exports = { getAll, getById, create, update, search, getProductosFrecuentes };
+    const existing = await db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
+    }
+
+    // Soft delete: set activo = 0
+    await db.prepare('UPDATE clientes SET activo = 0 WHERE id = ?').run(id);
+
+    // Auditoría
+    await db.prepare(
+      'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, datos_anteriores) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.user.id, 'ELIMINAR_CLIENTE', 'CLIENTES', 'clientes', id, JSON.stringify(existing));
+
+    res.json({ success: true, message: 'Cliente eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar el cliente' });
+  }
+};
+
+module.exports = { getAll, getById, create, update, search, getProductosFrecuentes, deleteCliente };

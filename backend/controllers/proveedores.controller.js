@@ -87,5 +87,28 @@ const update = async (req, res) => {
   }
 };
 
+const deleteProveedor = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-module.exports = { getAll, getById, create, update };
+    const existing = await db.prepare('SELECT * FROM proveedores WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Proveedor no encontrado' });
+    }
+
+    // Soft delete: set activo = 0
+    await db.prepare('UPDATE proveedores SET activo = 0 WHERE id = ?').run(id);
+
+    // Auditoría
+    await db.prepare(
+      'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, datos_anteriores) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.user.id, 'ELIMINAR_PROVEEDOR', 'COMPRAS', 'proveedores', id, JSON.stringify(existing));
+
+    res.json({ success: true, message: 'Proveedor eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error al eliminar proveedor:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar el proveedor' });
+  }
+};
+
+module.exports = { getAll, getById, create, update, deleteProveedor };

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { clientesApi } from '@/services/api'
-import { MagnifyingGlassIcon, PlusIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 
 const clientes = ref([])
 const loading = ref(false)
@@ -49,6 +49,24 @@ const openEditModal = (cliente) => {
   modalMode.value = 'edit'
   form.value = { ...cliente }
   showModal.value = true
+}
+
+const deleteCliente = async (id) => {
+  if (!confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+    return
+  }
+
+  loading.value = true
+  try {
+    await clientesApi.delete(id)
+    alert('Cliente eliminado exitosamente')
+    loadClientes()
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error)
+    alert(error.response?.data?.message || 'Error al eliminar el cliente')
+  } finally {
+    loading.value = false
+  }
 }
 
 const saveCliente = async () => {
@@ -135,9 +153,14 @@ onMounted(loadClientes)
                 <span class="badge badge-info">{{ cliente.tipo_cliente }}</span>
               </td>
               <td class="px-4 py-3 text-center">
-                <button @click="openEditModal(cliente)" class="text-primary-600 hover:text-primary-800">
-                  <PencilIcon class="w-5 h-5" />
-                </button>
+                <div class="flex items-center justify-center space-x-2">
+                  <button @click="openEditModal(cliente)" class="text-primary-600 hover:text-primary-800" title="Editar">
+                    <PencilIcon class="w-5 h-5" />
+                  </button>
+                  <button @click="deleteCliente(cliente.id)" class="text-red-600 hover:text-red-800" title="Eliminar">
+                    <TrashIcon class="w-5 h-5" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>

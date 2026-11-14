@@ -12,7 +12,9 @@ import {
   ChartBarIcon,
   UserGroupIcon,
   WrenchScrewdriverIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  BuildingStorefrontIcon,
+  CreditCardIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -45,9 +47,21 @@ const menuItems = [
     roles: ['ADMIN', 'ROOT']
   },
   {
+    name: 'Proveedores',
+    icon: BuildingStorefrontIcon,
+    route: '/proveedores',
+    roles: ['ADMIN', 'ROOT']
+  },
+  {
     name: 'Compras',
     icon: ShoppingBagIcon,
     route: '/compras',
+    roles: ['ADMIN', 'ROOT']
+  },
+  {
+    name: 'Fiados / Al Anote',
+    icon: CreditCardIcon,
+    route: '/fiados',
     roles: ['ADMIN', 'ROOT']
   },
   {

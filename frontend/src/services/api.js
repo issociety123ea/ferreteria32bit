@@ -66,6 +66,7 @@ export const productosApi = {
     // Dejar que el interceptor maneje los headers
     return api.put(`/productos/${id}`, formData)
   },
+  delete: (id) => api.delete(`/productos/${id}`),
   adjustStock: (id, data) => api.post(`/productos/${id}/ajustar-stock`, data)
 }
 
@@ -85,7 +86,8 @@ export const clientesApi = {
   getById: (id) => api.get(`/clientes/${id}`),
   getProductosFrecuentes: (id, limit = 10) => api.get(`/clientes/${id}/productos-frecuentes`, { params: { limit } }),
   create: (data) => api.post('/clientes', data),
-  update: (id, data) => api.put(`/clientes/${id}`, data)
+  update: (id, data) => api.put(`/clientes/${id}`, data),
+  delete: (id) => api.delete(`/clientes/${id}`)
 }
 
 // Categorías API
@@ -107,7 +109,8 @@ export const proveedoresApi = {
   getAll: () => api.get('/proveedores'),
   getById: (id) => api.get(`/proveedores/${id}`),
   create: (data) => api.post('/proveedores', data),
-  update: (id, data) => api.put(`/proveedores/${id}`, data)
+  update: (id, data) => api.put(`/proveedores/${id}`, data),
+  delete: (id) => api.delete(`/proveedores/${id}`)
 }
 
 // Reportes API

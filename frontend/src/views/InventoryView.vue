@@ -5,6 +5,7 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
   PencilIcon,
+  TrashIcon,
   FunnelIcon,
   XMarkIcon
 } from '@heroicons/vue/24/outline'
@@ -147,6 +148,24 @@ const openEditModal = (producto) => {
     precio_venta: producto.precio_venta
   }
   showModal.value = true
+}
+
+const deleteProducto = async (id) => {
+  if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+    return
+  }
+
+  loading.value = true
+  try {
+    await productosApi.delete(id)
+    alert('Producto eliminado exitosamente')
+    await loadProductos()
+  } catch (error) {
+    console.error('Error al eliminar producto:', error)
+    alert(error.response?.data?.message || 'Error al eliminar el producto')
+  } finally {
+    loading.value = false
+  }
 }
 
 const saveProducto = async () => {
@@ -304,9 +323,14 @@ onMounted(() => {
                 </span>
               </td>
               <td class="px-4 py-3 text-center">
-                <button @click="openEditModal(producto)" class="text-primary-600 hover:text-primary-800">
-                  <PencilIcon class="w-5 h-5" />
-                </button>
+                <div class="flex items-center justify-center space-x-2">
+                  <button @click="openEditModal(producto)" class="text-primary-600 hover:text-primary-800" title="Editar">
+                    <PencilIcon class="w-5 h-5" />
+                  </button>
+                  <button @click="deleteProducto(producto.id)" class="text-red-600 hover:text-red-800" title="Eliminar">
+                    <TrashIcon class="w-5 h-5" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
