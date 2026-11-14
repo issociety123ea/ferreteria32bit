@@ -147,8 +147,8 @@ export const usePosStore = defineStore('pos', {
           items: this.cartForApi,
           metodo_pago: paymentData.metodo_pago,
           monto_efectivo: paymentData.monto_efectivo || 0,
-          monto_tarjeta: paymentData.monto_tarjeta || 0,
           monto_qr: paymentData.monto_qr || 0,
+          monto_credito: paymentData.monto_credito || 0,
           notas: paymentData.notas || null
         }
 

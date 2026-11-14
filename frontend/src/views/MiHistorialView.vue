@@ -180,16 +180,29 @@
           </div>
 
           <!-- Botón reimprimir -->
-          <div class="mt-6">
+          <div class="mt-6 flex gap-3">
             <button
               @click="reimprimirRecibo(selectedVenta)"
-              class="w-full btn btn-primary py-3"
+              class="flex-1 btn btn-primary py-3"
             >
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
               </svg>
               Reimprimir Recibo
             </button>
+            <button
+              v-if="selectedVenta.estado === 'COMPLETADA'"
+              @click="anularVenta(selectedVenta)"
+              class="flex-1 btn btn-danger py-3"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+              Anular Venta
+            </button>
+            <div v-else class="flex-1 btn btn-secondary py-3 opacity-50 cursor-not-allowed">
+              Venta {{ selectedVenta.estado }}
+            </div>
           </div>
         </div>
       </div>
@@ -231,8 +244,8 @@ const formatDateTime = (dateString) => {
 const getPaymentBadge = (method) => {
   const badges = {
     'EFECTIVO': 'badge-success',
-    'TARJETA': 'badge-primary',
-    'QR': 'badge-warning'
+    'CREDITO': 'badge-warning',
+    'QR': 'badge-primary'
   }
   return badges[method] || 'badge-secondary'
 }
@@ -364,6 +377,25 @@ const reimprimirRecibo = (venta) => {
 
   printWindow.document.write(receiptHTML)
   printWindow.document.close()
+}
+
+const anularVenta = async (venta) => {
+  if (!confirm(`¿Estás seguro de que deseas ANULAR la venta ${venta.numero_venta}?\n\nEsta acción:\n- Devolvería el stock de los productos\n- Anularía cualquier crédito asociado\n- Se registraría en auditoría`)) {
+    return
+  }
+
+  const razon = prompt('Motivo de la anulación:', 'Error en venta')
+  if (!razon) return
+
+  try {
+    await ventasApi.anular(venta.id, { razon })
+    alert(`✓ Venta ${venta.numero_venta} anulada exitosamente`)
+    showDetalleModal.value = false
+    await loadHistorial()
+  } catch (error) {
+    console.error('Error al anular venta:', error)
+    alert(error.response?.data?.message || 'Error al anular la venta')
+  }
 }
 
 onMounted(() => {

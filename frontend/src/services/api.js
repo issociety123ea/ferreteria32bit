@@ -76,7 +76,7 @@ export const ventasApi = {
   getMiHistorial: (params) => api.get('/ventas/mi-historial', { params }),
   getById: (id) => api.get(`/ventas/${id}`),
   create: (data) => api.post('/ventas', data),
-  anular: (id, motivo) => api.post(`/ventas/${id}/anular`, { motivo })
+  anular: (id, data) => api.post(`/ventas/${id}/anular`, data)
 }
 
 // Clientes API
