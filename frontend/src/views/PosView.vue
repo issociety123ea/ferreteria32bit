@@ -297,13 +297,18 @@ const processPayment = async () => {
     return
   }
 
+  if (paymentMethod.value === 'CREDITO' && !selectedClient.value) {
+    alert('Debe seleccionar un cliente para ventas al fiado')
+    return
+  }
+
   processingPayment.value = true
 
   const paymentData = {
     metodo_pago: paymentMethod.value,
-    monto_efectivo: paymentMethod.value === 'EFECTIVO' ? cartTotal.value : 0,
-    monto_tarjeta: paymentMethod.value === 'TARJETA' ? cartTotal.value : 0,
-    monto_qr: paymentMethod.value === 'QR' ? cartTotal.value : 0
+    monto_efectivo: paymentMethod.value === 'EFECTIVO' ? cartTotal.value : (paymentMethod.value === 'CREDITO' ? montoRecibido.value : 0),
+    monto_qr: paymentMethod.value === 'QR' ? cartTotal.value : 0,
+    monto_credito: paymentMethod.value === 'CREDITO' ? Math.max(0, cartTotal.value - montoRecibido.value) : 0
   }
 
   const result = await posStore.processVenta(paymentData)
@@ -609,18 +614,6 @@ onMounted(async () => {
               <div class="text-xs">Efectivo</div>
             </button>
             <button
-              @click="paymentMethod = 'TARJETA'"
-              :class="[
-                'py-3 rounded-lg border-2 font-medium transition-all',
-                paymentMethod === 'TARJETA'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-slate-300 hover:border-slate-400'
-              ]"
-            >
-              <CreditCardIcon class="w-6 h-6 mx-auto mb-1" />
-              <div class="text-xs">Tarjeta</div>
-            </button>
-            <button
               @click="paymentMethod = 'QR'"
               :class="[
                 'py-3 rounded-lg border-2 font-medium transition-all',
@@ -631,6 +624,18 @@ onMounted(async () => {
             >
               <QrCodeIcon class="w-6 h-6 mx-auto mb-1" />
               <div class="text-xs">QR</div>
+            </button>
+            <button
+              @click="paymentMethod = 'CREDITO'"
+              :class="[
+                'py-3 rounded-lg border-2 font-medium transition-all',
+                paymentMethod === 'CREDITO'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-slate-300 hover:border-slate-400'
+              ]"
+            >
+              <CreditCardIcon class="w-6 h-6 mx-auto mb-1" />
+              <div class="text-xs">Fiado</div>
             </button>
           </div>
         </div>
@@ -649,6 +654,23 @@ onMounted(async () => {
           <div v-if="montoRecibido >= cartTotal" class="mt-3 bg-emerald-50 rounded-lg p-3">
             <div class="text-sm text-emerald-700 mb-1">Cambio</div>
             <div class="text-2xl font-bold text-emerald-700">{{ formatCurrency(cambio) }}</div>
+          </div>
+        </div>
+
+        <!-- Saldo pendiente (only for credit/fiado) -->
+        <div v-if="paymentMethod === 'CREDITO'" class="mb-6">
+          <label class="block text-sm font-medium text-slate-700 mb-2">¿Cuánto abona ahora?</label>
+          <input
+            v-model.number="montoRecibido"
+            type="number"
+            step="0.01"
+            :max="cartTotal"
+            class="input text-lg font-semibold"
+            placeholder="0.00"
+          />
+          <div class="mt-3 bg-orange-50 rounded-lg p-3">
+            <div class="text-sm text-orange-700 mb-1">Saldo pendiente</div>
+            <div class="text-2xl font-bold text-orange-700">{{ formatCurrency(Math.max(0, cartTotal - montoRecibido)) }}</div>
           </div>
         </div>
 
