@@ -38,6 +38,12 @@ if not exist "%ROOT_DIR%backups" (
     mkdir "%ROOT_DIR%backups"
 )
 
+REM Compilar frontend para asegurar que los cambios se reflejen
+echo Actualizando interfaz frontend...
+cd /d "%ROOT_DIR%frontend"
+call npm run build >nul 2>&1
+cd /d "%ROOT_DIR%"
+
 REM Ejecutar backup automático (silenciosamente)
 echo Creando copia de seguridad...
 node "%ROOT_DIR%scripts\backup.js" >nul 2>&1
