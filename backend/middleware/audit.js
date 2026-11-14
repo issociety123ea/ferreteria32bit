@@ -16,7 +16,7 @@ const auditAction = (modulo, accion, options = {}) => {
   return async (req, res, next) => {
     try {
       // Obtener información de la solicitud
-      const usuarioId = req.user?.id;
+      const usuarioId = (req.user && req.user.id) ? req.user.id : null;
       const ipAddress = req.ip || req.connection.remoteAddress;
       const tablaAfectada = options.tabla || null;
       const registroId = options.registroId || null;

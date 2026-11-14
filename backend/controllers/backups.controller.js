@@ -117,7 +117,7 @@ const listarBackups = async (req, res) => {
           estado: status,
           tamaño: size,
           tamaño_mb: (size / (1024 * 1024)).toFixed(2),
-          fecha_creacion: info?.timestamp || null,
+          fecha_creacion: (info && info.timestamp) ? info.timestamp : null,
           info: info
         };
       });

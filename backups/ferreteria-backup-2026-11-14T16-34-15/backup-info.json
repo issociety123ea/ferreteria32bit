@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-11-14T16:34:15.956Z",
+  "version": "1.0.0",
+  "status": "SUCCESS",
+  "description": "Copia de seguridad automática del sistema POS Ferretería",
+  "includes": [
+    "database",
+    "uploads"
+  ],
+  "filesBackedUp": [
+    {
+      "file": "ferreteria.db",
+      "size": 278528,
+      "hash": "630a0d7d3629c584a2ae6828b9ff7a85091b4eb10d35299142ff99c5ad40e850"
+    },
+    {
+      "file": "uploads/",
+      "size": 138280,
+      "fileCount": 1
+    }
+  ],
+  "errors": [],
+  "restoreInstructions": "\nPara restaurar este backup:\n1. Detener la aplicación\n2. Copiar ferreteria.db al directorio database/\n3. Copiar contenido de uploads/ al directorio uploads/\n4. Reiniciar la aplicación\n      "
+}
