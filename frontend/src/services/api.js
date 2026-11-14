@@ -7,12 +7,17 @@ const api = axios.create({
   }
 })
 
-// Request interceptor
+// Request interceptor - CORREGIDO PARA ENVIAR TOKEN EN TODAS LAS SOLICITUDES
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    // IMPORTANTE: No sobrescribir Content-Type para multipart/form-data
+    // Dejar que axios lo maneje automáticamente
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
     }
     return config
   },
@@ -26,6 +31,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+    }
+    if (error.response?.status === 403) {
+      console.error('Acceso denegado (403). Token puede ser inválido o expirado.')
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'
@@ -48,12 +59,12 @@ export const productosApi = {
   getFrecuentes: (limit = 12) => api.get('/productos/frecuentes', { params: { limit } }),
   getById: (id) => api.get(`/productos/${id}`),
   create: (formData) => {
-    const config = { headers: { 'Content-Type': 'multipart/form-data' } }
-    return api.post('/productos', formData, config)
+    // Dejar que el interceptor maneje los headers
+    return api.post('/productos', formData)
   },
   update: (id, formData) => {
-    const config = { headers: { 'Content-Type': 'multipart/form-data' } }
-    return api.put(`/productos/${id}`, formData, config)
+    // Dejar que el interceptor maneje los headers
+    return api.put(`/productos/${id}`, formData)
   },
   adjustStock: (id, data) => api.post(`/productos/${id}/ajustar-stock`, data)
 }
@@ -122,4 +133,24 @@ export const kardexApi = {
   getByProducto: (productoId, params) => api.get(`/kardex/producto/${productoId}`, { params })
 }
 
+// Créditos API
+export const creditosApi = {
+  getAll: (params) => api.get('/creditos', { params }),
+  getById: (id) => api.get(`/creditos/${id}`),
+  getResumen: () => api.get('/creditos/resumen'),
+  registrarPago: (data) => api.post('/creditos/pagar', data),
+  getHistorialPagos: (clienteId) => api.get(`/creditos/cliente/${clienteId}/pagos`),
+  cancelarCredito: (id, data) => api.post(`/creditos/${id}/cancelar`, data)
+}
+
+// Historial API
+export const historialApi = {
+  getTransacciones: (params) => api.get('/historial/transacciones', { params }),
+  getVentas: (params) => api.get('/historial/ventas', { params }),
+  getAuditoria: (params) => api.get('/historial/auditoria', { params }),
+  getKardex: (params) => api.get('/historial/kardex', { params }),
+  getClienteHistorial: (clienteId) => api.get(`/historial/cliente/${clienteId}`)
+}
+
 export default api
+
