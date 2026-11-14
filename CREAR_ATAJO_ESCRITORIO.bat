@@ -22,17 +22,16 @@ if not exist "%VBS_FILE%" (
 )
 
 REM Crear el acceso directo usando PowerShell
-powershell -Command "^
-    $shortcut = '%SHORTCUT%'; ^
-    $scriptPath = '%VBS_FILE%'; ^
-    $shell = New-Object -ComObject WScript.Shell; ^
-    $link = $shell.CreateShortcut($shortcut); ^
-    $link.TargetPath = $scriptPath; ^
-    $link.WorkingDirectory = '%ROOT_DIR%'; ^
-    $link.Description = 'Ferretería POS - Sistema de Punto de Venta'; ^
-    $link.Save(); ^
-    Write-Host 'Acceso directo creado en el escritorio'
-"
+powershell -NoProfile -Command ^
+  "$shortcut = '%SHORTCUT%'; " ^
+  "$scriptPath = '%VBS_FILE%'; " ^
+  "$shell = New-Object -ComObject WScript.Shell; " ^
+  "$link = $shell.CreateShortcut($shortcut); " ^
+  "$link.TargetPath = $scriptPath; " ^
+  "$link.WorkingDirectory = '%ROOT_DIR%'; " ^
+  "$link.Description = 'Ferretería POS - Sistema de Punto de Venta'; " ^
+  "$link.Save(); " ^
+  "Write-Host 'Acceso directo creado en el escritorio'"
 
 if errorlevel 1 (
     echo Error al crear el acceso directo

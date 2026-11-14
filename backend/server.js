@@ -30,6 +30,8 @@ const usuariosRoutes = require('./routes/usuarios.routes.js');
 const kardexRoutes = require('./routes/kardex.routes.js');
 const creditosRoutes = require('./routes/creditos.routes.js');
 const historialRoutes = require('./routes/historial.routes.js');
+const auditoriaRoutes = require('./routes/auditoria.routes.js');
+const backupsRoutes = require('./routes/backups.routes.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,6 +85,8 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/kardex', kardexRoutes);
 app.use('/api/creditos', creditosRoutes);
 app.use('/api/historial', historialRoutes);
+app.use('/api/auditoria', auditoriaRoutes);
+app.use('/api/backups', backupsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
