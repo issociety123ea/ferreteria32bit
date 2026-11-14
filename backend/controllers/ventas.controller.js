@@ -23,10 +23,18 @@ const create = async (req, res) => {
   const connection = db.connection;
 
   try {
-    const { cliente_id, items, metodo_pago, monto_efectivo, monto_tarjeta, monto_qr, notas } = req.body;
+    const { cliente_id, items, metodo_pago, monto_efectivo, monto_qr, monto_credito, notas, fecha_vencimiento_credito } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Debe incluir al menos un producto' });
+    }
+
+    // Validación: Si el método de pago es CREDITO o hay monto_credito, debe haber un cliente válido (no genérico)
+    if ((metodo_pago === 'CREDITO' || (monto_credito && monto_credito > 0)) && (!cliente_id || cliente_id === 1)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Para ventas a crédito debe seleccionar un cliente registrado (no puede ser Cliente General)'
+      });
     }
 
     // Begin transaction
@@ -40,7 +48,11 @@ const create = async (req, res) => {
     try {
       // 1. Validate stock availability for all items
       for (const item of items) {
-        const producto = await db.prepare('SELECT id, nombre, stock_actual, precio_venta, precio_costo, permite_decimales FROM productos WHERE id = ? AND activo = 1').get(item.producto_id);
+        if (!item.producto_id) {
+          throw new Error('Cada ítem debe tener un producto_id válido');
+        }
+
+        const producto = await db.prepare('SELECT id, codigo_sku_interno, nombre, stock_actual, precio_venta, precio_costo, permite_decimales FROM productos WHERE id = ? AND activo = 1').get(item.producto_id);
 
         if (!producto) {
           throw new Error(`Producto ID ${item.producto_id} no encontrado o inactivo`);
@@ -88,9 +100,15 @@ const create = async (req, res) => {
       const total = subtotal - descuento;
       const numeroVenta = await generateNumeroVenta();
 
+      // Determinar método de pago
+      const finalMetodoPago = metodo_pago || 'EFECTIVO';
+      const finalMontoEfectivo = monto_efectivo || 0;
+      const finalMontoQr = monto_qr || 0;
+      const finalMontoCredito = monto_credito || 0;
+
       // 3. Insert venta
       const ventaResult = await db.prepare(`
-        INSERT INTO ventas (numero_venta, cliente_id, usuario_id, subtotal, descuento, total, total_costo, metodo_pago, monto_efectivo, monto_tarjeta, monto_qr, estado, notas)
+        INSERT INTO ventas (numero_venta, cliente_id, usuario_id, subtotal, descuento, total, total_costo, metodo_pago, monto_efectivo, monto_qr, monto_credito, estado, notas)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETADA', ?)
       `).run(
         numeroVenta,
@@ -100,25 +118,27 @@ const create = async (req, res) => {
         descuento,
         total,
         totalCosto,
-        metodo_pago || 'EFECTIVO',
-        monto_efectivo || 0,
-        monto_tarjeta || 0,
-        monto_qr || 0,
+        finalMetodoPago,
+        finalMontoEfectivo,
+        finalMontoQr,
+        finalMontoCredito,
         notas || null
       );
 
       const ventaId = ventaResult.lastID;
 
-      // 4. Insert detalle items (triggers will update stock)
+      // 4. Insert detalle items con codigo_producto
       const insertDetalle = db.prepare(`
-        INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, costo_unitario, subtotal, descuento, total)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO detalle_ventas (venta_id, producto_id, codigo_producto, nombre_producto, cantidad, precio_unitario, costo_unitario, subtotal, descuento, total)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       for (const det of detalles) {
         await insertDetalle.run(
           ventaId,
           det.producto_id,
+          det.codigo_producto,
+          det.nombre_producto,
           det.cantidad,
           det.precio_unitario,
           det.costo_unitario,
@@ -149,7 +169,15 @@ const create = async (req, res) => {
         );
       }
 
-      // 7. Auditoría
+      // 7. Si es venta a crédito, el trigger creará el registro automáticamente
+      // Pero si se proporciona fecha de vencimiento, actualizarla
+      if ((finalMetodoPago === 'CREDITO' || finalMontoCredito > 0) && fecha_vencimiento_credito) {
+        await db.prepare(`
+          UPDATE creditos SET fecha_vencimiento = ? WHERE venta_id = ?
+        `).run(fecha_vencimiento_credito, ventaId);
+      }
+
+      // 8. Auditoría
       await db.prepare(
         'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
       ).run(req.user.id, 'CREAR_VENTA', 'VENTAS', 'ventas', ventaId);
@@ -187,18 +215,22 @@ const getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+    const estado = req.query.estado || 'COMPLETADA';
 
-    const countResult = await db.prepare('SELECT COUNT(*) as total FROM ventas WHERE estado = "COMPLETADA"').get();
+    const countResult = await db.prepare('SELECT COUNT(*) as total FROM ventas WHERE estado = ?').get(estado);
 
     const ventas = await db.prepare(`
-      SELECT v.*, u.nombre as usuario_nombre, c.nombre as cliente_nombre
+      SELECT
+        v.*,
+        u.nombre as usuario_nombre,
+        c.nombre_razon_social as cliente_nombre
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE v.estado = 'COMPLETADA'
+      WHERE v.estado = ?
       ORDER BY v.fecha DESC
       LIMIT ? OFFSET ?
-    `).all(limit, offset);
+    `).all(estado, limit, offset);
 
     res.json({
       success: true,
@@ -221,7 +253,11 @@ const getAll = async (req, res) => {
 const getById = async (req, res) => {
   try {
     const venta = await db.prepare(`
-      SELECT v.*, u.nombre as usuario_nombre, c.nombre as cliente_nombre
+      SELECT
+        v.*,
+        u.nombre as usuario_nombre,
+        c.nombre_razon_social as cliente_nombre,
+        c.nit_ci as cliente_nit
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
@@ -239,7 +275,29 @@ const getById = async (req, res) => {
       WHERE dv.venta_id = ?
     `).all(req.params.id);
 
-    res.json({ success: true, data: { ...venta, detalles } });
+    // Si la venta es a crédito, obtener información del crédito
+    let credito = null;
+    if (venta.metodo_pago === 'CREDITO' || venta.monto_credito > 0) {
+      credito = await db.prepare(`
+        SELECT cr.*,
+          (SELECT COUNT(*) FROM pagos_creditos WHERE credito_id = cr.id) as total_pagos
+        FROM creditos cr
+        WHERE cr.venta_id = ?
+      `).get(req.params.id);
+
+      if (credito) {
+        const pagos = await db.prepare(`
+          SELECT pc.*, u.nombre as recibido_por_nombre
+          FROM pagos_creditos pc
+          LEFT JOIN usuarios u ON pc.recibido_por = u.id
+          WHERE pc.credito_id = ?
+          ORDER BY pc.fecha_pago DESC
+        `).all(credito.id);
+        credito.pagos = pagos;
+      }
+    }
+
+    res.json({ success: true, data: { ...venta, detalles, credito } });
   } catch (error) {
     console.error('Error al obtener venta:', error);
     res.status(500).json({ success: false, message: 'Error al obtener la venta' });
