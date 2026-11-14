@@ -14,9 +14,9 @@ const ventasDiarias = async (req, res) => {
         SUM(total - total_costo) as ganancia_neta,
         AVG(total) as ticket_promedio,
         SUM(CASE WHEN metodo_pago = 'EFECTIVO' THEN total ELSE 0 END) as total_efectivo,
-        SUM(CASE WHEN metodo_pago = 'TARJETA' THEN total ELSE 0 END) as total_tarjeta,
         SUM(CASE WHEN metodo_pago = 'QR' THEN total ELSE 0 END) as total_qr,
-        SUM(CASE WHEN metodo_pago = 'CREDITO' THEN total ELSE 0 END) as total_credito
+        SUM(CASE WHEN metodo_pago = 'CREDITO' THEN total ELSE 0 END) as total_credito,
+        SUM(CASE WHEN metodo_pago = 'MIXTO' THEN total ELSE 0 END) as total_mixto
       FROM ventas
       WHERE estado = 'COMPLETADA'
         AND DATE(fecha) >= ?
@@ -58,8 +58,8 @@ const corteCaja = async (req, res) => {
         SUM(total_costo) as total_costos,
         SUM(total - total_costo) as ganancia_neta,
         SUM(monto_efectivo) as total_efectivo,
-        SUM(monto_tarjeta) as total_tarjeta,
         SUM(monto_qr) as total_qr,
+        SUM(monto_credito) as total_credito,
         AVG(total) as ticket_promedio
       FROM ventas v
       WHERE ${whereClause}
