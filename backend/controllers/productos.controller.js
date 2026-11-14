@@ -387,6 +387,3 @@ const deleteProducto = async (req, res) => {
 };
 
 module.exports = { getAll, search, getFrecuentes, getById, create, update, adjustStock, deleteProducto };
-
-
-module.exports = { getAll, getById, create, update, adjustStock, search, getFrecuentes };
