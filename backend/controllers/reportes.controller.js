@@ -51,18 +51,35 @@ const corteCaja = async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
+    // CORRECCIÓN: Separar ventas contado de ventas fiadas
     const corte = await db.prepare(`
       SELECT
-        COUNT(*) as cantidad_ventas,
-        SUM(total) as total_ventas,
+        COUNT(*) as cantidad_ventas_total,
+        SUM(total) as total_ventas_registradas,
         SUM(total_costo) as total_costos,
         SUM(total - total_costo) as ganancia_neta,
         SUM(monto_efectivo) as total_efectivo,
         SUM(monto_qr) as total_qr,
-        SUM(monto_credito) as total_credito,
+        SUM(monto_credito) as total_fiado,
+        SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'QR', 'MIXTO') AND monto_credito = 0 THEN total ELSE 0 END) as ventas_contado,
+        SUM(CASE WHEN metodo_pago = 'CREDITO' OR monto_credito > 0 THEN 1 ELSE 0 END) as cantidad_ventas_fiadas,
         AVG(total) as ticket_promedio
       FROM ventas v
       WHERE ${whereClause}
+    `).get(...params);
+
+    // Obtener abonos/cobros de créditos del día (dinero que entra físicamente a la caja)
+    const abonosCreditos = await db.prepare(`
+      SELECT
+        COUNT(*) as cantidad_abonos,
+        SUM(pc.monto_pagado) as total_abonos,
+        SUM(pc.monto_efectivo) as abonos_efectivo,
+        SUM(pc.monto_qr) as abonos_qr
+      FROM pagos_creditos pc
+      INNER JOIN creditos cr ON pc.credito_id = cr.id
+      INNER JOIN ventas v ON cr.venta_id = v.id
+      WHERE DATE(pc.fecha_pago) = ?
+      ${req.user.rol === 'VENDEDOR' ? 'AND pc.recibido_por = ?' : (usuarioId ? 'AND pc.recibido_por = ?' : '')}
     `).get(...params);
 
     const ventasPorMetodo = await db.prepare(`
@@ -79,12 +96,30 @@ const corteCaja = async (req, res) => {
       ? await db.prepare('SELECT id, nombre, username FROM usuarios WHERE id = ?').get(usuarioId)
       : null;
 
+    // Calcular dinero FÍSICO real en caja (efectivo + QR + abonos)
+    const dineroFisico =
+      (corte.total_efectivo || 0) +
+      (corte.total_qr || 0) +
+      (abonosCreditos.total_abonos || 0);
+
     res.json({
       success: true,
       data: {
         fecha,
         usuario,
-        resumen: corte,
+        resumen: {
+          ...corte,
+          // Abonos de créditos
+          abonos_efectivo: abonosCreditos.abonos_efectivo || 0,
+          abonos_qr: abonosCreditos.abonos_qr || 0,
+          total_abonos_creditos: abonosCreditos.total_abonos || 0,
+          cantidad_abonos: abonosCreditos.cantidad_abonos || 0,
+          // Dinero físico real
+          dinero_fisico_total: dineroFisico,
+          // Claridad
+          ventas_contado: corte.ventas_contado || 0,
+          cantidad_ventas_fiadas: corte.cantidad_ventas_fiadas || 0
+        },
         por_metodo_pago: ventasPorMetodo
       }
     });

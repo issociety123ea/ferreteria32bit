@@ -1,10 +1,40 @@
 import { defineStore } from 'pinia'
 import { productosApi, ventasApi, clientesApi } from '@/services/api'
 
+// CORRECCIÓN TOL-01: Helpers para persistencia en localStorage
+const CART_STORAGE_KEY = 'ferreteria_pos_cart'
+const CLIENT_STORAGE_KEY = 'ferreteria_pos_client'
+
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data))
+  } catch (error) {
+    console.error('Error saving to localStorage:', error)
+  }
+}
+
+const loadFromLocalStorage = (key) => {
+  try {
+    const data = localStorage.getItem(key)
+    return data ? JSON.parse(data) : null
+  } catch (error) {
+    console.error('Error loading from localStorage:', error)
+    return null
+  }
+}
+
+const clearLocalStorage = (key) => {
+  try {
+    localStorage.removeItem(key)
+  } catch (error) {
+    console.error('Error clearing localStorage:', error)
+  }
+}
+
 export const usePosStore = defineStore('pos', {
   state: () => ({
-    cart: [],
-    selectedClient: null,
+    cart: loadFromLocalStorage(CART_STORAGE_KEY) || [],
+    selectedClient: loadFromLocalStorage(CLIENT_STORAGE_KEY) || null,
     searchQuery: '',
     searchResults: [],
     productosFrequentes: [],
@@ -14,8 +44,10 @@ export const usePosStore = defineStore('pos', {
 
   getters: {
     cartTotal: (state) => {
+      // CORRECCIÓN FER-03/04: Usar redondeo preciso para evitar descuadres de centavos
       return state.cart.reduce((total, item) => {
-        return total + (item.precio_unitario * item.cantidad)
+        const subtotal = Math.round(item.precio_unitario * item.cantidad * 100) / 100
+        return Math.round((total + subtotal) * 100) / 100
       }, 0)
     },
 
@@ -72,11 +104,15 @@ export const usePosStore = defineStore('pos', {
         })
       }
 
+      // CORRECCIÓN: Persistir carrito en localStorage
+      saveToLocalStorage(CART_STORAGE_KEY, this.cart)
+
       return { success: true }
     },
 
     removeFromCart(index) {
       this.cart.splice(index, 1)
+      saveToLocalStorage(CART_STORAGE_KEY, this.cart)
     },
 
     updateQuantity(index, cantidad) {
@@ -96,6 +132,7 @@ export const usePosStore = defineStore('pos', {
         this.removeFromCart(index)
       } else {
         item.cantidad = cantidad
+        saveToLocalStorage(CART_STORAGE_KEY, this.cart)
       }
 
       return { success: true }
@@ -104,10 +141,13 @@ export const usePosStore = defineStore('pos', {
     clearCart() {
       this.cart = []
       this.selectedClient = null
+      clearLocalStorage(CART_STORAGE_KEY)
+      clearLocalStorage(CLIENT_STORAGE_KEY)
     },
 
     setClient(client) {
       this.selectedClient = client
+      saveToLocalStorage(CLIENT_STORAGE_KEY, client)
     },
 
     async searchProducts(query) {

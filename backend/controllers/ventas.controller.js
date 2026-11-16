@@ -1,22 +1,44 @@
 const db = require('../config/database.js');
 
 // Generate sequential venta number: VTA-YYYYMMDD-XXXX
-const generateNumeroVenta = async () => {
+// CORRECCIÓN D6: Manejo de race condition con reintentos automáticos
+const generateNumeroVenta = async (retries = 3) => {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
   const prefix = `VTA-${dateStr}-`;
 
-  const lastVenta = await db.prepare(
-    "SELECT numero_venta FROM ventas WHERE numero_venta LIKE ? ORDER BY id DESC LIMIT 1"
-  ).get(`${prefix}%`);
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const lastVenta = await db.prepare(
+        "SELECT numero_venta FROM ventas WHERE numero_venta LIKE ? ORDER BY id DESC LIMIT 1"
+      ).get(`${prefix}%`);
 
-  let nextNum = 1;
-  if (lastVenta) {
-    const lastNum = parseInt(lastVenta.numero_venta.split('-').pop());
-    nextNum = lastNum + 1;
+      let nextNum = 1;
+      if (lastVenta) {
+        const lastNum = parseInt(lastVenta.numero_venta.split('-').pop());
+        nextNum = lastNum + 1;
+      }
+
+      const numeroVenta = `${prefix}${String(nextNum).padStart(4, '0')}`;
+
+      // Verificar que no existe (prevención extra contra race condition)
+      const exists = await db.prepare('SELECT id FROM ventas WHERE numero_venta = ?').get(numeroVenta);
+      if (!exists) {
+        return numeroVenta;
+      }
+
+      // Si existe, esperar un tiempo aleatorio antes de reintentar
+      if (attempt < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
+      }
+    } catch (error) {
+      if (attempt === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
+    }
   }
 
-  return `${prefix}${String(nextNum).padStart(4, '0')}`;
+  // Fallback: usar timestamp si todos los reintentos fallan
+  return `${prefix}${Date.now().toString().slice(-4)}`;
 };
 
 const create = async (req, res) => {
@@ -324,8 +346,40 @@ const annulSale = async (req, res) => {
         await db.prepare('UPDATE productos SET stock_actual = stock_actual + ? WHERE id = ?').run(det.cantidad, det.producto_id);
       }
 
-      // Update venta status
-      await db.prepare('UPDATE ventas SET estado = ? WHERE id = ?').run('ANULADA', ventaId);
+      // CORRECCIÓN D7: Guardar metadata completa de anulación
+      await db.prepare(`
+        UPDATE ventas
+        SET estado = ?,
+            anulada_por = ?,
+            anulada_en = CURRENT_TIMESTAMP,
+            motivo_anulacion = ?
+        WHERE id = ?
+      `).run('ANULADA', req.user.id, razon, ventaId);
+
+      // CORRECCIÓN ANU-06: Si la venta fue a crédito, cancelar el crédito y revertir saldo del cliente
+      if (venta.metodo_pago === 'CREDITO' || venta.monto_credito > 0) {
+        const credito = await db.prepare('SELECT * FROM creditos WHERE venta_id = ?').get(ventaId);
+
+        if (credito && credito.estado !== 'CANCELADO') {
+          // Cancelar el crédito
+          await db.prepare(`
+            UPDATE creditos
+            SET estado = 'CANCELADO',
+                notas = COALESCE(notas, '') || ' | CANCELADO: Venta anulada por ' || ? || ' el ' || datetime('now') || '. Motivo: ' || ?
+            WHERE venta_id = ?
+          `).run(req.user.username || req.user.nombre, razon, ventaId);
+
+          // Revertir el saldo_credito del cliente (solo si aún tiene saldo pendiente)
+          if (credito.saldo_pendiente > 0) {
+            await db.prepare(`
+              UPDATE clientes
+              SET saldo_credito = saldo_credito - ?,
+                  actualizado_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).run(credito.saldo_pendiente, credito.cliente_id);
+          }
+        }
+      }
 
       // Auditoría
       await db.prepare(

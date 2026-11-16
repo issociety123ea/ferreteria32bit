@@ -19,6 +19,8 @@ const generateNumeroCompra = async () => {
 };
 
 const create = async (req, res) => {
+  const connection = db.connection;
+
   try {
     const { proveedor_id, items, notas } = req.body;
 
@@ -54,10 +56,15 @@ const create = async (req, res) => {
 
     const numeroCompra = await generateNumeroCompra();
 
-    // Manual transaction
-    try {
-      await db.prepare('BEGIN TRANSACTION').run();
+    // CORRECCIÓN D3: Transaction management usando connection.run directamente
+    await new Promise((resolve, reject) => {
+      connection.run('BEGIN TRANSACTION', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
+    try {
       // Insert compra
       const compraResult = await db.prepare(`
         INSERT INTO compras_proveedores (numero_compra, proveedor_id, usuario_id, total_compra, estado, notas)
@@ -81,7 +88,13 @@ const create = async (req, res) => {
         'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
       ).run(req.user.id, 'CREAR_COMPRA', 'COMPRAS', 'compras_proveedores', compraId);
 
-      await db.prepare('COMMIT').run();
+      // Commit transaction
+      await new Promise((resolve, reject) => {
+        connection.run('COMMIT', (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
 
       const compra = await db.prepare(`
         SELECT c.*, p.nombre as proveedor_nombre
@@ -103,7 +116,10 @@ const create = async (req, res) => {
         message: `Compra ${numeroCompra} registrada exitosamente`
       });
     } catch (error) {
-      await db.prepare('ROLLBACK').run();
+      // Rollback on error
+      await new Promise((resolve) => {
+        connection.run('ROLLBACK', () => resolve());
+      });
       throw error;
     }
   } catch (error) {

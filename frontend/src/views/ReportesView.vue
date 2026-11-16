@@ -161,26 +161,55 @@ onMounted(() => {
         Corte de Caja - {{ new Date(fechaHoy).toLocaleDateString('es-BO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
       </h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-          <div class="text-sm text-emerald-700 mb-1">Total Efectivo</div>
-          <div class="text-2xl font-bold text-emerald-700">{{ formatCurrency(corteCaja.resumen.total_efectivo) }}</div>
+      <!-- CORRECCIÓN: Mostrar separación clara entre efectivo real y fiados -->
+      <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 class="font-semibold text-blue-900 mb-3 text-sm uppercase tracking-wide">💰 Dinero Físico en Caja (Real)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white rounded-lg p-3 border border-emerald-300">
+            <div class="text-xs text-emerald-700 mb-1">Efectivo (Ventas)</div>
+            <div class="text-xl font-bold text-emerald-700">{{ formatCurrency(corteCaja.resumen.total_efectivo) }}</div>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-purple-300">
+            <div class="text-xs text-purple-700 mb-1">QR (Ventas)</div>
+            <div class="text-xl font-bold text-purple-700">{{ formatCurrency(corteCaja.resumen.total_qr) }}</div>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-blue-300">
+            <div class="text-xs text-blue-700 mb-1">Abonos de Fiados</div>
+            <div class="text-xl font-bold text-blue-700">{{ formatCurrency(corteCaja.resumen.total_abonos_creditos) }}</div>
+            <div class="text-xs text-blue-600 mt-1">{{ corteCaja.resumen.cantidad_abonos || 0 }} pagos</div>
+          </div>
         </div>
-        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <div class="text-sm text-blue-700 mb-1">Total QR</div>
-          <div class="text-2xl font-bold text-blue-700">{{ formatCurrency(corteCaja.resumen.total_qr) }}</div>
-        </div>
-        <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <div class="text-sm text-purple-700 mb-1">Total Crédito / Fiado</div>
-          <div class="text-2xl font-bold text-purple-700">{{ formatCurrency(corteCaja.resumen.total_credito) }}</div>
+        <div class="mt-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg p-4 shadow-lg">
+          <div class="text-sm font-medium mb-1">TOTAL EFECTIVO EN CAJA</div>
+          <div class="text-3xl font-bold">{{ formatCurrency(corteCaja.resumen.dinero_fisico_total) }}</div>
         </div>
       </div>
 
-      <div class="mt-6 bg-slate-50 rounded-lg p-4 border border-slate-200">
+      <!-- Ventas Fiadas del Día (Informativo) -->
+      <div class="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+        <h3 class="font-semibold text-orange-900 mb-3 text-sm uppercase tracking-wide">📋 Ventas al Fiado / Crédito (Hoy)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-white rounded-lg p-3 border border-orange-300">
+            <div class="text-xs text-orange-700 mb-1">Total Fiado del Día</div>
+            <div class="text-xl font-bold text-orange-700">{{ formatCurrency(corteCaja.resumen.total_fiado) }}</div>
+            <div class="text-xs text-orange-600 mt-1">{{ corteCaja.resumen.cantidad_ventas_fiadas || 0 }} ventas</div>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-slate-300">
+            <div class="text-xs text-slate-700 mb-1">Ventas al Contado</div>
+            <div class="text-xl font-bold text-slate-700">{{ formatCurrency(corteCaja.resumen.ventas_contado) }}</div>
+            <div class="text-xs text-slate-600 mt-1">{{ corteCaja.resumen.cantidad_ventas_total - (corteCaja.resumen.cantidad_ventas_fiadas || 0) }} ventas</div>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-orange-700 italic">
+          ⚠️ Las ventas fiadas NO están en caja — son cuentas por cobrar
+        </div>
+      </div>
+
+      <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <div class="text-sm text-slate-600 mb-1">Total Ventas</div>
-            <div class="text-xl font-bold text-slate-800">{{ formatCurrency(corteCaja.resumen.total_ventas) }}</div>
+            <div class="text-sm text-slate-600 mb-1">Total Ventas Registradas</div>
+            <div class="text-xl font-bold text-slate-800">{{ formatCurrency(corteCaja.resumen.total_ventas_registradas) }}</div>
           </div>
           <div>
             <div class="text-sm text-slate-600 mb-1">Ganancia Neta</div>

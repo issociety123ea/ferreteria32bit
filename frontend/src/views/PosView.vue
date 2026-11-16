@@ -306,6 +306,11 @@ const processPayment = async () => {
     return
   }
 
+  // CORRECCIÓN: Protección contra doble clic
+  if (processingPayment.value) {
+    return // Ya se está procesando, ignorar clics adicionales
+  }
+
   processingPayment.value = true
 
   const paymentData = {
@@ -315,26 +320,30 @@ const processPayment = async () => {
     monto_credito: paymentMethod.value === 'CREDITO' ? Math.max(0, cartTotal.value - montoRecibido.value) : 0
   }
 
-  const result = await posStore.processVenta(paymentData)
+  try {
+    const result = await posStore.processVenta(paymentData)
 
-  processingPayment.value = false
+    if (result.success) {
+      showPaymentModal.value = false
 
-  if (result.success) {
-    showPaymentModal.value = false
+      // IMPRIMIR RECIBO AUTOMÁTICAMENTE
+      printReceipt(result.venta, result.venta.detalles || cartItems.value)
 
-    // IMPRIMIR RECIBO AUTOMÁTICAMENTE
-    printReceipt(result.venta, result.venta.detalles || cartItems.value)
+      success(`Venta ${result.venta.numero_venta} completada exitosamente!`)
 
-    success(`Venta ${result.venta.numero_venta} completada exitosamente!`)
-
-    // Reset form
-    searchQuery.value = ''
-    searchResults.value = []
-    clientSearch.value = ''
-    montoRecibido.value = 0
-    paymentMethod.value = 'EFECTIVO'
-  } else {
-    error(result.message)
+      // Reset form
+      searchQuery.value = ''
+      searchResults.value = []
+      clientSearch.value = ''
+      montoRecibido.value = 0
+      paymentMethod.value = 'EFECTIVO'
+    } else {
+      error(result.message)
+    }
+  } catch (err) {
+    error(err?.message || 'Error al procesar la venta')
+  } finally {
+    processingPayment.value = false
   }
 }
 
