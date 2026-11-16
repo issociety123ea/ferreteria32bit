@@ -148,28 +148,11 @@ const create = async (req, res) => {
         );
       }
 
-      // 5. Update product stock
-      for (const item of items) {
-        await db.prepare('UPDATE productos SET stock_actual = stock_actual - ? WHERE id = ?').run(item.cantidad, item.producto_id);
-      }
+      // 5. Stock update y kardex son manejados automáticamente por el trigger trg_after_venta_detalle_insert
+      // (Ver schema.sql líneas 309-333)
+      // CORRECCIÓN D1 y D2: Eliminado el doble descuento de stock y doble inserción en kardex
 
-      // 6. Insert kardex entries
-      for (const det of detalles) {
-        await db.prepare(`
-          INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, stock_anterior, stock_nuevo, costo_unitario, referencia_tipo, usuario_id, notas)
-          SELECT id, 'VENTA', ?, stock_actual + ?, stock_actual, ?, 'VENTA', ?, ?
-          FROM productos WHERE id = ?
-        `).run(
-          det.cantidad,
-          det.cantidad,
-          det.costo_unitario,
-          req.user.id,
-          `Venta ${numeroVenta}`,
-          det.producto_id
-        );
-      }
-
-      // 7. Si es venta a crédito, el trigger creará el registro automáticamente
+      // 6. Si es venta a crédito, el trigger creará el registro automáticamente
       // Pero si se proporciona fecha de vencimiento, actualizarla
       if ((finalMetodoPago === 'CREDITO' || finalMontoCredito > 0) && fecha_vencimiento_credito) {
         await db.prepare(`
