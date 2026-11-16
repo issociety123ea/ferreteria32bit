@@ -1,4 +1,5 @@
 const db = require('../config/database.js');
+const { getLocalDateTime } = require('../utils/date.js');
 
 // Obtener todos los créditos con filtros
 const getAll = async (req, res) => {
@@ -173,9 +174,12 @@ const registrarPago = async (req, res) => {
       const finalMontoQr = monto_qr || 0;
 
       // Insertar pago (el trigger actualizará el crédito y el saldo del cliente)
+      // CORRECCIÓN 1 + 4: Pasar fecha/hora local Bolivia explícitamente (SQLite usa UTC por defecto)
+      // Así el abono se registra el día correcto y aparece en corte de caja / mi historial del día
+      const fechaLocal = getLocalDateTime();
       const pagoResult = await db.prepare(`
-        INSERT INTO pagos_creditos (credito_id, monto_pagado, metodo_pago, monto_efectivo, monto_qr, saldo_anterior, saldo_nuevo, recibido_por, notas)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO pagos_creditos (credito_id, monto_pagado, metodo_pago, monto_efectivo, monto_qr, saldo_anterior, saldo_nuevo, recibido_por, notas, fecha_pago)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         credito_id,
         monto_pagado,
@@ -185,7 +189,8 @@ const registrarPago = async (req, res) => {
         saldoAnterior,
         saldoNuevo,
         req.user.id,
-        notas || null
+        notas || null,
+        fechaLocal
       );
 
       // Auditoría

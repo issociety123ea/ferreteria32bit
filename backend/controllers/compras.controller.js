@@ -1,8 +1,13 @@
 const db = require('../config/database.js');
+const { getLocalDateTime } = require('../utils/date.js');
 
+// CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
 const generateNumeroCompra = async () => {
   const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const dateStr = `${year}${month}${day}`;
   const prefix = `COM-${dateStr}-`;
 
   const lastCompra = await db.prepare(
@@ -66,10 +71,12 @@ const create = async (req, res) => {
 
     try {
       // Insert compra
+      // CORRECCIÓN 1: Pasar fecha/hora local Bolivia explícitamente (SQLite usa UTC por defecto)
+      const fechaLocal = getLocalDateTime();
       const compraResult = await db.prepare(`
-        INSERT INTO compras_proveedores (numero_compra, proveedor_id, usuario_id, total_compra, estado, notas)
-        VALUES (?, ?, ?, ?, 'COMPLETADA', ?)
-      `).run(numeroCompra, proveedor_id, req.user.id, totalCompra, notas || null);
+        INSERT INTO compras_proveedores (numero_compra, proveedor_id, usuario_id, total_compra, estado, notas, fecha)
+        VALUES (?, ?, ?, ?, 'COMPLETADA', ?, ?)
+      `).run(numeroCompra, proveedor_id, req.user.id, totalCompra, notas || null, fechaLocal);
 
       const compraId = compraResult.lastID;
 

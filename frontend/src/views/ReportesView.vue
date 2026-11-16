@@ -15,7 +15,15 @@ const stockBajo = ref([])
 const productosMasVendidos = ref([])
 const corteCaja = ref(null)
 
-const fechaHoy = ref(new Date().toISOString().slice(0, 10))
+// CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
+const getLocalDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const fechaHoy = ref(getLocalDate())
 
 const formatCurrency = (value) => `Bs. ${parseFloat(value || 0).toFixed(2)}`
 

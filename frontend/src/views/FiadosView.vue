@@ -24,6 +24,9 @@ const showPagoModal = ref(false)
 const editingId = ref(null)
 const searchQuery = ref('')
 
+// CORRECCIÓN 4: Pestañas Pendientes / Pagados
+const activeTab = ref('PENDIENTE') // 'PENDIENTE' por defecto, 'PAGADO' como historial
+
 const formData = ref({
   cliente_id: null,
   monto_total: 0,
@@ -40,7 +43,8 @@ const pagoData = ref({
 })
 
 const formatCurrency = (value) => `Bs. ${parseFloat(value || 0).toFixed(2)}`
-const formatDate = (date) => new Date(date).toLocaleDateString('es-BO')
+// CORRECCIÓN 1: Usar zona horaria Bolivia
+const formatDate = (date) => new Date(date).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' })
 
 const resetForm = () => {
   formData.value = {
@@ -65,7 +69,9 @@ const resetPagoForm = () => {
 const loadCreditos = async () => {
   loading.value = true
   try {
-    const response = await creditosApi.getAll({ estado: 'PENDIENTE' })
+    // CORRECCIÓN 4: Cargar según pestaña activa (PENDIENTE por defecto, PAGADO como historial)
+    const estado = activeTab.value === 'PENDIENTE' ? 'PENDIENTE' : 'PAGADO'
+    const response = await creditosApi.getAll({ estado })
     creditos.value = response.data.data.items || []
   } catch (err) {
     console.error('Error al cargar créditos:', err)
@@ -73,6 +79,14 @@ const loadCreditos = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// CORRECCIÓN 4: Cambiar de pestaña y recargar
+const switchTab = async (tab) => {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  searchQuery.value = ''
+  await loadCreditos()
 }
 
 const loadClientes = async () => {
@@ -231,6 +245,48 @@ onMounted(async () => {
       />
     </div>
 
+    <!-- CORRECCIÓN 4: Pestañas Pendientes / Pagados -->
+    <div class="flex space-x-2">
+      <button
+        @click="switchTab('PENDIENTE')"
+        :class="[
+          'px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2',
+          activeTab === 'PENDIENTE'
+            ? 'bg-orange-500 text-white shadow-lg'
+            : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+        ]"
+      >
+        <span>Pendientes</span>
+        <span
+          :class="[
+            'px-2 py-0.5 rounded-full text-xs',
+            activeTab === 'PENDIENTE' ? 'bg-white text-orange-600' : 'bg-orange-100 text-orange-700'
+          ]"
+        >
+          {{ activeTab === 'PENDIENTE' ? creditos.length : '' }}
+        </span>
+      </button>
+      <button
+        @click="switchTab('PAGADO')"
+        :class="[
+          'px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2',
+          activeTab === 'PAGADO'
+            ? 'bg-emerald-500 text-white shadow-lg'
+            : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+        ]"
+      >
+        <span>Pagados (Historial)</span>
+        <span
+          :class="[
+            'px-2 py-0.5 rounded-full text-xs',
+            activeTab === 'PAGADO' ? 'bg-white text-emerald-600' : 'bg-emerald-100 text-emerald-700'
+          ]"
+        >
+          {{ activeTab === 'PAGADO' ? creditos.length : '' }}
+        </span>
+      </button>
+    </div>
+
     <!-- Loading state -->
     <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="spinner"></div>
@@ -277,20 +333,22 @@ onMounted(async () => {
               <td>
                 <div class="flex items-center space-x-2">
                   <button
+                    v-if="credito.estado !== 'PAGADO'"
                     @click="openPagoModal(credito)"
-                    :disabled="credito.estado === 'PAGADO'"
                     class="btn btn-sm btn-primary"
                     title="Registrar pago"
                   >
                     <CurrencyDollarIcon class="w-4 h-4" />
                   </button>
                   <button
+                    v-if="activeTab === 'PENDIENTE' && credito.estado !== 'PAGADO'"
                     @click="cancelarCredito(credito.id)"
                     class="btn btn-sm btn-danger"
                     title="Cancelar crédito"
                   >
                     <TrashIcon class="w-4 h-4" />
                   </button>
+                  <span v-if="credito.estado === 'PAGADO'" class="text-xs text-emerald-600 italic">Deuda saldada</span>
                 </div>
               </td>
             </tr>
@@ -306,8 +364,14 @@ onMounted(async () => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <h3 class="text-xl font-semibold text-slate-700 mb-2">No hay créditos pendientes</h3>
-      <p class="text-slate-500">Todos los créditos están pagados o cancelados</p>
+      <h3 class="text-xl font-semibold text-slate-700 mb-2">
+        {{ activeTab === 'PENDIENTE' ? 'No hay créditos pendientes' : 'No hay créditos pagados' }}
+      </h3>
+      <p class="text-slate-500">
+        {{ activeTab === 'PENDIENTE'
+          ? 'Todos los créditos están pagados o cancelados'
+          : 'Aún no se ha pagado ningún crédito completamente' }}
+      </p>
     </div>
 
     <!-- Modal Nuevo Fiado (informativo) -->

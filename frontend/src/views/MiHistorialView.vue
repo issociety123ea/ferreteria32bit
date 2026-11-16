@@ -28,17 +28,32 @@
         <div class="text-sm opacity-90 mb-1">Total Ventas</div>
         <div class="text-3xl font-bold">{{ resumen.cantidad_ventas || 0 }}</div>
       </div>
+      <!-- CORRECCIÓN 3: Total Cobrado = Efectivo + QR + Abonos de deuda (NO incluye fiados pendientes) -->
       <div class="card p-6 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
         <div class="text-sm opacity-90 mb-1">Total Cobrado</div>
-        <div class="text-3xl font-bold">{{ formatCurrency(resumen.total_vendido || 0) }}</div>
+        <div class="text-3xl font-bold">{{ formatCurrency(resumen.total_cobrado || 0) }}</div>
+        <div class="text-xs opacity-75 mt-1">Efectivo + QR + Abonos de fiados</div>
       </div>
       <div class="card p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
         <div class="text-sm opacity-90 mb-1">Efectivo</div>
         <div class="text-2xl font-bold">{{ formatCurrency(resumen.total_efectivo || 0) }}</div>
       </div>
+      <!-- CORRECCIÓN 3: Cambiar "Tarjeta + QR" por "QR" -->
       <div class="card p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white">
-        <div class="text-sm opacity-90 mb-1">Tarjeta + QR</div>
-        <div class="text-2xl font-bold">{{ formatCurrency((resumen.total_tarjeta || 0) + (resumen.total_qr || 0)) }}</div>
+        <div class="text-sm opacity-90 mb-1">QR / Transferencia</div>
+        <div class="text-2xl font-bold">{{ formatCurrency(resumen.total_qr || 0) }}</div>
+      </div>
+      <!-- CORRECCIÓN 3: Agregar tarjeta de Fiado / Crédito (informativo, no sumado al cobrado) -->
+      <div class="card p-6 bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+        <div class="text-sm opacity-90 mb-1">Fiado / Crédito</div>
+        <div class="text-2xl font-bold">{{ formatCurrency(resumen.total_credito || 0) }}</div>
+        <div class="text-xs opacity-75 mt-1">No cobrado todavía</div>
+      </div>
+      <!-- CORRECCIÓN 4: Agregar tarjeta de Abonos de Fiados del día -->
+      <div class="card p-6 bg-gradient-to-br from-teal-500 to-teal-600 text-white">
+        <div class="text-sm opacity-90 mb-1">Abonos de Fiados</div>
+        <div class="text-2xl font-bold">{{ formatCurrency(resumen.total_abonos || 0) }}</div>
+        <div class="text-xs opacity-75 mt-1">{{ resumen.cantidad_abonos || 0 }} pagos recibidos</div>
       </div>
     </div>
 
@@ -222,7 +237,15 @@ const { success, error } = useToast()
 const loading = ref(false)
 const ventas = ref([])
 const resumen = ref(null)
-const selectedDate = ref(new Date().toISOString().slice(0, 10))
+// CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
+const getLocalDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const selectedDate = ref(getLocalDate())
 const showDetalleModal = ref(false)
 const selectedVenta = ref(null)
 const detalleItems = ref([])
@@ -232,14 +255,16 @@ const formatCurrency = (value) => `Bs. ${parseFloat(value || 0).toFixed(2)}`
 const formatTime = (dateString) => {
   return new Date(dateString).toLocaleTimeString('es-BO', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'America/La_Paz'
   })
 }
 
 const formatDateTime = (dateString) => {
   return new Date(dateString).toLocaleString('es-BO', {
     dateStyle: 'long',
-    timeStyle: 'short'
+    timeStyle: 'short',
+    timeZone: 'America/La_Paz'
   })
 }
 

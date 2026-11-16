@@ -1,10 +1,16 @@
 const db = require('../config/database.js');
+const { getLocalDateTime } = require('../utils/date.js');
 
 // Generate sequential venta number: VTA-YYYYMMDD-XXXX
 // CORRECCIÓN D6: Manejo de race condition con reintentos automáticos
+// CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
 const generateNumeroVenta = async (retries = 3) => {
+  // Obtener fecha local Bolivia
   const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const dateStr = `${year}${month}${day}`;
   const prefix = `VTA-${dateStr}-`;
 
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -129,9 +135,11 @@ const create = async (req, res) => {
       const finalMontoCredito = monto_credito || 0;
 
       // 3. Insert venta
+      // CORRECCIÓN 1: Pasar fecha/hora local Bolivia explícitamente (SQLite usa UTC por defecto)
+      const fechaLocal = getLocalDateTime();
       const ventaResult = await db.prepare(`
-        INSERT INTO ventas (numero_venta, cliente_id, usuario_id, subtotal, descuento, total, total_costo, metodo_pago, monto_efectivo, monto_qr, monto_credito, estado, notas)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETADA', ?)
+        INSERT INTO ventas (numero_venta, cliente_id, usuario_id, subtotal, descuento, total, total_costo, metodo_pago, monto_efectivo, monto_qr, monto_credito, estado, notas, fecha)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETADA', ?, ?)
       `).run(
         numeroVenta,
         cliente_id || 1,
@@ -144,7 +152,8 @@ const create = async (req, res) => {
         finalMontoEfectivo,
         finalMontoQr,
         finalMontoCredito,
-        notas || null
+        notas || null,
+        fechaLocal
       );
 
       const ventaId = ventaResult.lastID;

@@ -6,6 +6,9 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 
+// CORRECCIÓN 1: Configurar zona horaria Bolivia (UTC-4)
+process.env.TZ = 'America/La_Paz';
+
 const { errorHandler } = require('./middleware/errorHandler.js');
 
 // Ejecutar backup automático al iniciar

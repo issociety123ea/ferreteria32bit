@@ -1,8 +1,10 @@
 const db = require('../config/database.js');
+const { getLocalDate } = require('../utils/date.js');
 
 const ventasDiarias = async (req, res) => {
   try {
-    const fechaDesde = req.query.fecha_desde || new Date().toISOString().slice(0, 10);
+    // CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
+    const fechaDesde = req.query.fecha_desde || getLocalDate();
     const fechaHasta = req.query.fecha_hasta || fechaDesde;
 
     const resumen = await db.prepare(`
@@ -34,7 +36,21 @@ const ventasDiarias = async (req, res) => {
 
 const corteCaja = async (req, res) => {
   try {
-    const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+    // CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
+    const fechaParam = req.query.fecha;
+    let fecha;
+
+    if (fechaParam) {
+      fecha = fechaParam;
+    } else {
+      // Obtener fecha actual en Bolivia (no UTC)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      fecha = `${year}-${month}-${day}`;
+    }
+
     const usuarioId = req.query.usuario_id || req.user.id;
 
     let whereConditions = ['v.estado = "COMPLETADA"', 'DATE(v.fecha) = ?'];
@@ -51,24 +67,35 @@ const corteCaja = async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    // CORRECCIÓN: Separar ventas contado de ventas fiadas
+    // CORRECCIÓN 2: Separar ventas contado de ventas fiadas correctamente
     const corte = await db.prepare(`
       SELECT
         COUNT(*) as cantidad_ventas_total,
         SUM(total) as total_ventas_registradas,
         SUM(total_costo) as total_costos,
         SUM(total - total_costo) as ganancia_neta,
-        SUM(monto_efectivo) as total_efectivo,
-        SUM(monto_qr) as total_qr,
-        SUM(monto_credito) as total_fiado,
-        SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'QR', 'MIXTO') AND monto_credito = 0 THEN total ELSE 0 END) as ventas_contado,
+
+        -- Efectivo solo de ventas al contado
+        SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'MIXTO') THEN monto_efectivo ELSE 0 END) as total_efectivo,
+
+        -- QR solo de ventas al contado
+        SUM(CASE WHEN metodo_pago IN ('QR', 'MIXTO') THEN monto_qr ELSE 0 END) as total_qr,
+
+        -- Total fiado del día (ventas a crédito)
+        SUM(CASE WHEN metodo_pago = 'CREDITO' OR monto_credito > 0 THEN monto_credito ELSE 0 END) as total_fiado,
+
+        -- Ventas al contado (efectivo + QR sin crédito)
+        SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'QR') OR (metodo_pago = 'MIXTO' AND monto_credito = 0) THEN total ELSE 0 END) as ventas_contado,
+
+        -- Cantidad de ventas fiadas
         SUM(CASE WHEN metodo_pago = 'CREDITO' OR monto_credito > 0 THEN 1 ELSE 0 END) as cantidad_ventas_fiadas,
+
         AVG(total) as ticket_promedio
       FROM ventas v
       WHERE ${whereClause}
     `).get(...params);
 
-    // Obtener abonos/cobros de créditos del día (dinero que entra físicamente a la caja)
+    // CORRECCIÓN 2 + 4: Obtener abonos/cobros de créditos del día (dinero que entra físicamente a la caja)
     const abonosCreditos = await db.prepare(`
       SELECT
         COUNT(*) as cantidad_abonos,
@@ -76,8 +103,6 @@ const corteCaja = async (req, res) => {
         SUM(pc.monto_efectivo) as abonos_efectivo,
         SUM(pc.monto_qr) as abonos_qr
       FROM pagos_creditos pc
-      INNER JOIN creditos cr ON pc.credito_id = cr.id
-      INNER JOIN ventas v ON cr.venta_id = v.id
       WHERE DATE(pc.fecha_pago) = ?
       ${req.user.rol === 'VENDEDOR' ? 'AND pc.recibido_por = ?' : (usuarioId ? 'AND pc.recibido_por = ?' : '')}
     `).get(...params);
@@ -96,7 +121,7 @@ const corteCaja = async (req, res) => {
       ? await db.prepare('SELECT id, nombre, username FROM usuarios WHERE id = ?').get(usuarioId)
       : null;
 
-    // Calcular dinero FÍSICO real en caja (efectivo + QR + abonos)
+    // CORRECCIÓN 2: Calcular dinero FÍSICO real en caja (efectivo + QR de ventas + abonos)
     const dineroFisico =
       (corte.total_efectivo || 0) +
       (corte.total_qr || 0) +
@@ -219,7 +244,8 @@ const stockBajo = async (req, res) => {
 
 const resumenGeneral = async (req, res) => {
   try {
-    const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+    // CORRECCIÓN 1: Usar fecha local Bolivia (no UTC)
+    const fecha = req.query.fecha || getLocalDate();
 
     // Ventas del día
     const ventasHoy = await db.prepare(`
