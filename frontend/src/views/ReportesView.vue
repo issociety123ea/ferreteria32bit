@@ -27,6 +27,21 @@ const fechaHoy = ref(getLocalDate())
 
 const formatCurrency = (value) => `Bs. ${parseFloat(value || 0).toFixed(2)}`
 
+// CORRECCIÓN 2: Parsear "YYYY-MM-DD" como fecha LOCAL (no UTC).
+// new Date('2026-11-16') se interpreta como UTC medianoche → en Bolivia (UTC-4) cae el día anterior.
+// Construyendo con (year, month-1, day) forzamos interpretación local.
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return new Date()
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
+const formatFechaLarga = (dateStr) => {
+  return parseLocalDate(dateStr).toLocaleDateString('es-BO', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  })
+}
+
 const loadResumen = async () => {
   loading.value = true
   try {
@@ -166,7 +181,7 @@ onMounted(() => {
     <div v-if="corteCaja" class="card p-6">
       <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
         <BanknotesIcon class="w-6 h-6 mr-2 text-emerald-600" />
-        Corte de Caja - {{ new Date(fechaHoy).toLocaleDateString('es-BO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+        Corte de Caja - {{ formatFechaLarga(fechaHoy) }}
       </h2>
 
       <!-- CORRECCIÓN: Mostrar separación clara entre efectivo real y fiados -->

@@ -191,6 +191,41 @@ const create = async (req, res) => {
         `).run(fecha_vencimiento_credito, ventaId);
       }
 
+      // CORRECCIÓN 1 (Abono Inicial): Si la venta a crédito tiene un abono inicial (monto_efectivo > 0),
+      // registrar el pago en pagos_creditos y ajustar el saldo del crédito.
+      // El trigger trg_after_venta_credito_insert crea el crédito con saldo_pendiente = monto_credito (lo fiado).
+      // El abono inicial (monto_efectivo) es dinero que ENTRA a la caja hoy y debe descontarse de la deuda.
+      if (finalMetodoPago === 'CREDITO' && finalMontoEfectivo > 0) {
+        // Buscar el crédito recién creado por el trigger
+        const creditoCreado = await db.prepare('SELECT * FROM creditos WHERE venta_id = ?').get(ventaId);
+
+        if (creditoCreado) {
+          const saldoAnterior = creditoCreado.saldo_pendiente; // = monto_credito (lo fiado)
+          const saldoNuevo = Math.max(0, saldoAnterior - finalMontoEfectivo);
+
+          // Registrar el abono inicial en pagos_creditos con fecha local Bolivia
+          const fechaLocal = getLocalDateTime();
+          await db.prepare(`
+            INSERT INTO pagos_creditos (credito_id, monto_pagado, metodo_pago, monto_efectivo, saldo_anterior, saldo_nuevo, recibido_por, notas, fecha_pago)
+            VALUES (?, ?, 'EFECTIVO', ?, ?, ?, ?, ?, ?)
+          `).run(
+            creditoCreado.id,
+            finalMontoEfectivo,
+            finalMontoEfectivo,
+            saldoAnterior,
+            saldoNuevo,
+            req.user.id,
+            `Abono inicial - Venta ${numeroVenta}`,
+            fechaLocal
+          );
+
+          // El trigger trg_after_pago_credito_insert actualizará automáticamente:
+          // - creditos.saldo_pendiente = saldoNuevo
+          // - creditos.estado = 'PAGADO' si saldoNuevo <= 0
+          // - clientes.saldo_credito -= monto_pagado
+        }
+      }
+
       // 8. Auditoría
       await db.prepare(
         'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id) VALUES (?, ?, ?, ?, ?)'
