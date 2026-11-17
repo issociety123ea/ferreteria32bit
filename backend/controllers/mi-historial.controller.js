@@ -19,7 +19,9 @@ const getMiHistorial = async (req, res) => {
 
     const esVendedor = req.user.rol === 'VENDEDOR';
 
-    let whereConditions = ['estado = "COMPLETADA"', 'DATE(fecha) = ?'];
+    // CORRECCIÓN 2 (2026-11-17): prefijar con v. porque ahora JOIN-eamos creditos
+    // (ambas tablas tienen columna "estado", sería ambiguo sin prefijo).
+    let whereConditions = ['v.estado = "COMPLETADA"', 'DATE(v.fecha) = ?'];
     let params = [fecha];
 
     if (esVendedor) {
@@ -29,34 +31,48 @@ const getMiHistorial = async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
+    // CORRECCIÓN 3 (2026-11-17): JOIN a creditos para traer el saldo_pendiente actual
+    // de cada venta a crédito (descuenta abonos iniciales y pagos posteriores),
+    // así la lista puede mostrar "Abonó / Falta" coherente con la realidad.
     const ventas = await db.prepare(`
       SELECT
         v.*,
         u.nombre as usuario_nombre,
         c.nombre_razon_social as cliente_nombre,
-        c.nit_ci as cliente_nit
+        c.nit_ci as cliente_nit,
+        cr.id as credito_id,
+        cr.saldo_pendiente as credito_saldo_pendiente,
+        cr.estado as credito_estado,
+        cr.monto_total as credito_monto_total
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
+      LEFT JOIN creditos cr ON cr.venta_id = v.id
       WHERE ${whereClause}
       ORDER BY v.fecha DESC
     `).all(...params);
 
-    // CORRECCIÓN 3: Calcular correctamente el resumen con abonos de créditos del día
+    // CORRECCIÓN 2 (2026-11-17): Calcular el resumen correctamente.
+    // total_credito ahora muestra el SALDO PENDIENTE por cobrar (no el monto bruto fiado),
+    // restando los abonos ya recibidos. Así la tarjeta "Fiado / Crédito" no contradice
+    // a la tarjeta "Abonos de Fiados".
+    // LEFT JOIN creditos para obtener saldo_pendiente de cada venta; si no hay crédito, es 0.
     const resumen = await db.prepare(`
       SELECT
         COUNT(*) as cantidad_ventas,
         SUM(total) as total_vendido,
 
-        -- CORRECCIÓN 3: Solo efectivo de ventas al contado
+        -- Solo efectivo de ventas al contado + abono inicial de ventas a crédito
         SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'MIXTO') THEN monto_efectivo ELSE 0 END) as total_efectivo,
 
-        -- CORRECCIÓN 3: Solo QR de ventas al contado
+        -- Solo QR de ventas al contado
         SUM(CASE WHEN metodo_pago IN ('QR', 'MIXTO') THEN monto_qr ELSE 0 END) as total_qr,
 
-        -- CORRECCIÓN 3: Total fiado (no cobrado aún)
-        SUM(CASE WHEN metodo_pago = 'CREDITO' OR monto_credito > 0 THEN monto_credito ELSE 0 END) as total_credito
-      FROM ventas
+        -- SALDO PENDIENTE por cobrar de ventas a crédito del día (no el monto bruto fiado).
+        -- saldo_pendiente ya descuenta abonos iniciales y pagos posteriores (trigger).
+        COALESCE(SUM(CASE WHEN v.metodo_pago = 'CREDITO' OR v.monto_credito > 0 THEN COALESCE(cr.saldo_pendiente, 0) ELSE 0 END), 0) as total_credito
+      FROM ventas v
+      LEFT JOIN creditos cr ON cr.venta_id = v.id
       WHERE ${whereClause}
     `).get(...params);
 

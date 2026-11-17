@@ -67,7 +67,10 @@ const corteCaja = async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    // CORRECCIÓN 2: Separar ventas contado de ventas fiadas correctamente
+    // CORRECCIÓN 2 (2026-11-17): Separar ventas contado de ventas fiadas correctamente.
+    // total_fiado ahora muestra el SALDO PENDIENTE por cobrar (no el monto bruto fiado),
+    // sumando saldo_pendiente de cada crédito (que ya descuenta abonos iniciales y pagos).
+    // Así no contradice a "Abonos de Fiados". LEFT JOIN creditos es seguro (1 crédito por venta).
     const corte = await db.prepare(`
       SELECT
         COUNT(*) as cantidad_ventas_total,
@@ -75,14 +78,14 @@ const corteCaja = async (req, res) => {
         SUM(total_costo) as total_costos,
         SUM(total - total_costo) as ganancia_neta,
 
-        -- Efectivo solo de ventas al contado
+        -- Efectivo solo de ventas al contado + abono inicial de ventas a crédito
         SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'MIXTO') THEN monto_efectivo ELSE 0 END) as total_efectivo,
 
         -- QR solo de ventas al contado
         SUM(CASE WHEN metodo_pago IN ('QR', 'MIXTO') THEN monto_qr ELSE 0 END) as total_qr,
 
-        -- Total fiado del día (ventas a crédito)
-        SUM(CASE WHEN metodo_pago = 'CREDITO' OR monto_credito > 0 THEN monto_credito ELSE 0 END) as total_fiado,
+        -- Saldo pendiente por cobrar de ventas a crédito del día (no el monto bruto fiado)
+        COALESCE(SUM(CASE WHEN v.metodo_pago = 'CREDITO' OR v.monto_credito > 0 THEN COALESCE(cr.saldo_pendiente, 0) ELSE 0 END), 0) as total_fiado,
 
         -- Ventas al contado (efectivo + QR sin crédito)
         SUM(CASE WHEN metodo_pago IN ('EFECTIVO', 'QR') OR (metodo_pago = 'MIXTO' AND monto_credito = 0) THEN total ELSE 0 END) as ventas_contado,
@@ -92,6 +95,7 @@ const corteCaja = async (req, res) => {
 
         AVG(total) as ticket_promedio
       FROM ventas v
+      LEFT JOIN creditos cr ON cr.venta_id = v.id
       WHERE ${whereClause}
     `).get(...params);
 

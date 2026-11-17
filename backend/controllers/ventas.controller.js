@@ -191,20 +191,23 @@ const create = async (req, res) => {
         `).run(fecha_vencimiento_credito, ventaId);
       }
 
-      // CORRECCIÓN 1 (Abono Inicial): Si la venta a crédito tiene un abono inicial (monto_efectivo > 0),
-      // registrar el pago en pagos_creditos y ajustar el saldo del crédito.
-      // El trigger trg_after_venta_credito_insert crea el crédito con saldo_pendiente = monto_credito (lo fiado).
-      // El abono inicial (monto_efectivo) es dinero que ENTRA a la caja hoy y debe descontarse de la deuda.
+      // CORRECCIÓN 1 (Abono Inicial) — revisado 2026-11-17:
+      // El trigger trg_after_venta_credito_insert crea el crédito por el TOTAL de la venta
+      // (monto_total = NEW.total, saldo_pendiente = NEW.total) y suma NEW.total a clientes.saldo_credito.
+      // Si hay abono inicial (monto_efectivo > 0), registramos un pago en pagos_creditos; el trigger
+      // trg_after_pago_credito_insert descuenta ese abono del saldo_pendiente y del saldo_credito del cliente.
+      // Resultado: monto_total = total, saldo_pendiente = total - abono, estado = PENDIENTE,
+      // y clientes.saldo_credito aumenta solo por (total - abono). El abono entra a la caja (monto_efectivo).
       if (finalMetodoPago === 'CREDITO' && finalMontoEfectivo > 0) {
-        // Buscar el crédito recién creado por el trigger
+        // Buscar el crédito recién creado por el trigger (creado por el TOTAL)
         const creditoCreado = await db.prepare('SELECT * FROM creditos WHERE venta_id = ?').get(ventaId);
 
         if (creditoCreado) {
-          const saldoAnterior = creditoCreado.saldo_pendiente; // = monto_credito (lo fiado)
-          const saldoNuevo = Math.max(0, saldoAnterior - finalMontoEfectivo);
+          const saldoAnterior = creditoCreado.saldo_pendiente; // = total de la venta
+          const saldoNuevo = Math.max(0, saldoAnterior - finalMontoEfectivo); // = total - abono
 
           // Registrar el abono inicial en pagos_creditos con fecha local Bolivia
-          const fechaLocal = getLocalDateTime();
+          const fechaLocalAbono = getLocalDateTime();
           await db.prepare(`
             INSERT INTO pagos_creditos (credito_id, monto_pagado, metodo_pago, monto_efectivo, saldo_anterior, saldo_nuevo, recibido_por, notas, fecha_pago)
             VALUES (?, ?, 'EFECTIVO', ?, ?, ?, ?, ?, ?)
@@ -216,13 +219,13 @@ const create = async (req, res) => {
             saldoNuevo,
             req.user.id,
             `Abono inicial - Venta ${numeroVenta}`,
-            fechaLocal
+            fechaLocalAbono
           );
 
           // El trigger trg_after_pago_credito_insert actualizará automáticamente:
-          // - creditos.saldo_pendiente = saldoNuevo
-          // - creditos.estado = 'PAGADO' si saldoNuevo <= 0
-          // - clientes.saldo_credito -= monto_pagado
+          // - creditos.saldo_pendiente = saldoNuevo (total - abono)
+          // - creditos.estado = 'PAGADO' si saldoNuevo <= 0, si no queda 'PENDIENTE'
+          // - clientes.saldo_credito -= monto_pagado (neutraliza parte del incremento del trigger de venta)
         }
       }
 

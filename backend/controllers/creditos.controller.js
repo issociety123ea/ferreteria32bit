@@ -13,6 +13,13 @@ const getAll = async (req, res) => {
     let whereConditions = ['cr.estado = ?'];
     let params = [estado];
 
+    // CORRECCIÓN 2026-11-17: Para estados de deuda activa (PENDIENTE/VENCIDO),
+    // excluir registros con saldo_pendiente <= 0 (ya pagados o mal registrados).
+    // Así "Créditos Activos" y "Clientes con Deuda" sólo cuentan deudas reales.
+    if (estado === 'PENDIENTE' || estado === 'VENCIDO') {
+      whereConditions.push('cr.saldo_pendiente > 0');
+    }
+
     if (clienteId) {
       whereConditions.push('cr.cliente_id = ?');
       params.push(clienteId);

@@ -29,6 +29,40 @@ dbConnection.serialize(() => {
   dbConnection.run('PRAGMA foreign_keys = ON');
   dbConnection.run('PRAGMA temp_store = MEMORY');
 
+  // =====================================================
+  // MIGRACIÓN: Corregir trigger trg_after_venta_credito_insert
+  // (2026-11-17) — El crédito debe crearse por el TOTAL de la venta,
+  // no por monto_credito, para que el abono inicial no deje saldo en 0.
+  // CREATE TRIGGER IF NOT EXISTS no reemplaza triggers existentes,
+  // así que se hace DROP + CREATE cada vez que arranca (es idempotente).
+  // =====================================================
+  dbConnection.exec(`
+    DROP TRIGGER IF EXISTS trg_after_venta_credito_insert;
+    CREATE TRIGGER trg_after_venta_credito_insert
+    AFTER INSERT ON ventas
+    FOR EACH ROW
+    WHEN NEW.metodo_pago = 'CREDITO' OR NEW.monto_credito > 0
+    BEGIN
+        INSERT INTO creditos (venta_id, cliente_id, monto_total, saldo_pendiente, creado_por)
+        VALUES (
+            NEW.id,
+            NEW.cliente_id,
+            NEW.total,
+            CASE WHEN NEW.metodo_pago = 'CREDITO' THEN NEW.total ELSE COALESCE(NEW.monto_credito, NEW.total) END,
+            NEW.usuario_id
+        );
+
+        UPDATE clientes
+        SET saldo_credito = saldo_credito +
+            CASE WHEN NEW.metodo_pago = 'CREDITO' THEN NEW.total ELSE COALESCE(NEW.monto_credito, NEW.total) END,
+            actualizado_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.cliente_id;
+    END;
+  `, (err) => {
+    if (err) console.warn('[DB] Migración trigger crédito (no bloqueante):', err.message);
+    else console.log('[DB] Trigger trg_after_venta_credito_insert actualizado (crédito = total de venta).');
+  });
+
   // Check if usuarios table exists
   dbConnection.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
     if (err) {

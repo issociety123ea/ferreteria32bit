@@ -404,17 +404,29 @@ BEGIN
 END;
 
 -- Trigger para crear registro de crédito cuando una venta es a crédito
+-- CORRECCIÓN 2026-11-17: El crédito debe crearse por el TOTAL de la venta (NEW.total),
+-- no por NEW.monto_credito (que cuando hay abono inicial solo guarda el saldo a deber).
+-- Así el abono inicial (registrado luego en pagos_creditos por ventas.controller.js)
+-- se descuenta del total y saldo_pendiente refleja la deuda real.
+-- Para ventas MIXTO (efectivo+qr+crédito) se respeta monto_credito (la porción fiada).
 CREATE TRIGGER IF NOT EXISTS trg_after_venta_credito_insert
 AFTER INSERT ON ventas
 FOR EACH ROW
 WHEN NEW.metodo_pago = 'CREDITO' OR NEW.monto_credito > 0
 BEGIN
     INSERT INTO creditos (venta_id, cliente_id, monto_total, saldo_pendiente, creado_por)
-    VALUES (NEW.id, NEW.cliente_id, COALESCE(NEW.monto_credito, NEW.total), COALESCE(NEW.monto_credito, NEW.total), NEW.usuario_id);
+    VALUES (
+        NEW.id,
+        NEW.cliente_id,
+        NEW.total,
+        CASE WHEN NEW.metodo_pago = 'CREDITO' THEN NEW.total ELSE COALESCE(NEW.monto_credito, NEW.total) END,
+        NEW.usuario_id
+    );
 
-    -- Actualizar saldo de crédito del cliente
+    -- Actualizar saldo de crédito del cliente (deuda real generada)
     UPDATE clientes
-    SET saldo_credito = saldo_credito + COALESCE(NEW.monto_credito, NEW.total),
+    SET saldo_credito = saldo_credito +
+        CASE WHEN NEW.metodo_pago = 'CREDITO' THEN NEW.total ELSE COALESCE(NEW.monto_credito, NEW.total) END,
         actualizado_at = CURRENT_TIMESTAMP
     WHERE id = NEW.cliente_id;
 END;

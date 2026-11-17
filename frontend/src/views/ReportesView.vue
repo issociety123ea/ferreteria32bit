@@ -213,9 +213,9 @@ onMounted(() => {
         <h3 class="font-semibold text-orange-900 mb-3 text-sm uppercase tracking-wide">📋 Ventas al Fiado / Crédito (Hoy)</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="bg-white rounded-lg p-3 border border-orange-300">
-            <div class="text-xs text-orange-700 mb-1">Total Fiado del Día</div>
+            <div class="text-xs text-orange-700 mb-1">Saldo por Cobrar (Fiado)</div>
             <div class="text-xl font-bold text-orange-700">{{ formatCurrency(corteCaja.resumen.total_fiado) }}</div>
-            <div class="text-xs text-orange-600 mt-1">{{ corteCaja.resumen.cantidad_ventas_fiadas || 0 }} ventas</div>
+            <div class="text-xs text-orange-600 mt-1">{{ corteCaja.resumen.cantidad_ventas_fiadas || 0 }} ventas a crédito</div>
           </div>
           <div class="bg-white rounded-lg p-3 border border-slate-300">
             <div class="text-xs text-slate-700 mb-1">Ventas al Contado</div>

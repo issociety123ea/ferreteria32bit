@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-slate-800">Mi Historial de Ventas (v2.0)</h1>
+        <h1 class="text-3xl font-bold text-slate-800">Mi Historial de Ventas</h1>
         <p class="text-slate-600 mt-1">Revisa tus ventas del día</p>
       </div>
       <div class="flex items-center space-x-3">
@@ -43,11 +43,13 @@
         <div class="text-sm opacity-90 mb-1">QR / Transferencia</div>
         <div class="text-2xl font-bold">{{ formatCurrency(resumen.total_qr || 0) }}</div>
       </div>
-      <!-- CORRECCIÓN 3: Agregar tarjeta de Fiado / Crédito (informativo, no sumado al cobrado) -->
+      <!-- CORRECCIÓN 2 (2026-11-17): Esta tarjeta ahora muestra el SALDO PENDIENTE por cobrar
+           (no el monto bruto fiado), restando los abonos ya recibidos. Así no contradice a
+           "Abonos de Fiados". -->
       <div class="card p-6 bg-gradient-to-br from-amber-500 to-amber-600 text-white">
         <div class="text-sm opacity-90 mb-1">Fiado / Crédito</div>
         <div class="text-2xl font-bold">{{ formatCurrency(resumen.total_credito || 0) }}</div>
-        <div class="text-xs opacity-75 mt-1">No cobrado todavía</div>
+        <div class="text-xs opacity-75 mt-1">Saldo por cobrar</div>
       </div>
       <!-- CORRECCIÓN 4: Agregar tarjeta de Abonos de Fiados del día -->
       <div class="card p-6 bg-gradient-to-br from-teal-500 to-teal-600 text-white">
@@ -87,6 +89,17 @@
                 <span :class="['badge', getPaymentBadge(venta.metodo_pago)]">
                   {{ venta.metodo_pago }}
                 </span>
+                <!-- CORRECCIÓN 3 (2026-11-17): Detalle de abono/falta en ventas a crédito -->
+                <div
+                  v-if="venta.metodo_pago === 'CREDITO' && venta.credito_id"
+                  class="mt-1 text-xs leading-tight"
+                >
+                  <template v-if="(venta.credito_saldo_pendiente || 0) > 0">
+                    <div class="text-slate-500">Abonó: {{ formatCurrency((venta.credito_monto_total || 0) - venta.credito_saldo_pendiente) }}</div>
+                    <div class="text-amber-600 font-semibold">Falta: {{ formatCurrency(venta.credito_saldo_pendiente) }}</div>
+                  </template>
+                  <span v-else class="text-emerald-600 font-medium">Pagado completo</span>
+                </div>
               </td>
               <td>{{ formatCurrency(venta.subtotal) }}</td>
               <td>{{ venta.descuento > 0 ? formatCurrency(venta.descuento) : '-' }}</td>

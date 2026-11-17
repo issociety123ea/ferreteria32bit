@@ -483,6 +483,124 @@ async function test_CompraAtomica() {
 }
 
 // =====================================================
+// CORRECCIÓN 2026-11-17: Abono inicial en venta a crédito
+// El trigger trg_after_venta_credito_insert debe crear el crédito por el TOTAL
+// de la venta (no por monto_credito), para que el abono inicial registrado luego
+// en pagos_creditos no se descuente dos veces. Reproduce el flujo del controller
+// (ventas.controller.js) contra un esquema recién creado desde schema.sql.
+// Este test DISTINGUE la corrección del 2026-11-17: con el trigger antiguo
+// (saldo = monto_credito = total-abono) el saldo final sería 10, no 30.
+// =====================================================
+async function test_AbonoInicialNoSeDescuentaDosVeces() {
+  log.title('💳 ABONO INICIAL: No se descuenta dos veces (corrección 2026-11-17)');
+
+  // Producto y cliente reales
+  const producto = await dbRun(testDb, `
+    INSERT INTO productos (codigo_sku_interno, nombre, unidad_medida, stock_actual, precio_costo, precio_venta)
+    VALUES ('TEST-ABONO-INI', 'Producto Abono Inicial', 'Pieza', 50, 20, 50)
+  `);
+  const productoId = producto.lastID;
+
+  const cliente = await dbRun(testDb, `
+    INSERT INTO clientes (nombre_razon_social, nit_ci) VALUES ('Cliente Abono', '789012')
+  `);
+  const clienteId = cliente.lastID;
+
+  // Venta a CRÉDITO con abono inicial de 20 sobre un total de 50.
+  // El frontend envía monto_credito = max(0, total - montoRecibido) = 30 (la porción fiada NETA).
+  // El trigger corregido crea el crédito por NEW.total = 50 (BRUTO), no por monto_credito = 30.
+  const ventaTotal = 50;
+  const abonoInicial = 20;
+  const montoCreditoNeto = ventaTotal - abonoInicial; // 30, lo que el frontend envía
+
+  const venta = await dbRun(testDb, `
+    INSERT INTO ventas (numero_venta, cliente_id, usuario_id, subtotal, total, total_costo, metodo_pago, monto_efectivo, monto_credito, estado)
+    VALUES ('VTA-ABONO-INI-001', ?, 1, ?, ?, 20, 'CREDITO', ?, ?, 'COMPLETADA')
+  `, [clienteId, ventaTotal, ventaTotal, abonoInicial, montoCreditoNeto]);
+  const ventaId = venta.lastID;
+
+  // Detalle (necesario para que el trigger de stock/kardex sea consistente)
+  await dbRun(testDb, `
+    INSERT INTO detalle_ventas (venta_id, producto_id, codigo_producto, nombre_producto, cantidad, precio_unitario, costo_unitario, subtotal, total)
+    VALUES (?, ?, 'TEST-ABONO-INI', 'Producto Abono Inicial', 1, 50, 20, 50, 50)
+  `, [ventaId, productoId]);
+
+  // El trigger trg_after_venta_credito_insert ya creó el crédito. Verificamos que fue por el TOTAL.
+  const creditoCreado = await dbGet(testDb, 'SELECT * FROM creditos WHERE venta_id = ?', [ventaId]);
+
+  assert(
+    creditoCreado !== undefined,
+    'El trigger crea el crédito para la venta a crédito',
+    true,
+    creditoCreado !== undefined
+  );
+
+  // Aserción DISCRIMINANTE: monto_total y saldo_pendiente deben ser el TOTAL (50), no monto_credito (30).
+  // Con el trigger antiguo, ambos serían 30.
+  assert(
+    creditoCreado.monto_total === ventaTotal,
+    'Crédito se crea por el TOTAL de la venta (50), no por monto_credito (30)',
+    ventaTotal,
+    creditoCreado.monto_total
+  );
+
+  assert(
+    creditoCreado.saldo_pendiente === ventaTotal,
+    'Saldo pendiente inicial = TOTAL (50), no monto_credito (30)',
+    ventaTotal,
+    creditoCreado.saldo_pendiente
+  );
+
+  // Reproducir el abono inicial que hace ventas.controller.js:
+  // buscar el crédito, calcular saldo_nuevo = total - abono, e insertar en pagos_creditos.
+  const saldoAnterior = creditoCreado.saldo_pendiente; // 50
+  const saldoNuevo = Math.max(0, saldoAnterior - abonoInicial); // 30
+
+  await dbRun(testDb, `
+    INSERT INTO pagos_creditos (credito_id, monto_pagado, metodo_pago, monto_efectivo, saldo_anterior, saldo_nuevo, recibido_por, notas)
+    VALUES (?, ?, 'EFECTIVO', ?, ?, ?, ?, 'Abono inicial - Venta VTA-ABONO-INI-001')
+  `, [creditoCreado.id, abonoInicial, abonoInicial, saldoAnterior, saldoNuevo, 1]);
+
+  // El trigger trg_after_pago_credito_insert ya actualizó el crédito y el saldo del cliente.
+  const creditoFinal = await dbGet(testDb, 'SELECT * FROM creditos WHERE id = ?', [creditoCreado.id]);
+  const clienteFinal = await dbGet(testDb, 'SELECT saldo_credito FROM clientes WHERE id = ?', [clienteId]);
+
+  // Aserción CLAVE de la corrección: el saldo final debe ser 30 (50 - 20), NO 10.
+  // Con el trigger antiguo, saldo sería 10 (monto_credito 30 - abono 20): el abono se descontaba 2 veces.
+  assert(
+    creditoFinal.saldo_pendiente === 30,
+    'Saldo final = 30 (TOTAL 50 - abono 20). Con trigger antiguo sería 10 (doble descuento)',
+    30,
+    creditoFinal.saldo_pendiente
+  );
+
+  assert(
+    creditoFinal.estado === 'PENDIENTE',
+    'Crédito queda PENDIENTE (aún debe 30, no está pagado)',
+    'PENDIENTE',
+    creditoFinal.estado
+  );
+
+  // saldo_credito del cliente: +50 (trigger venta) - 20 (trigger pago) = +30
+  assert(
+    clienteFinal.saldo_credito === 30,
+    'Saldo de crédito del cliente = 30 (50 generado - 20 abonado)',
+    30,
+    clienteFinal.saldo_credito
+  );
+
+  // El pago inicial debe existir en el historial
+  const pagoInicial = await dbGet(testDb, 'SELECT * FROM pagos_creditos WHERE credito_id = ?', [creditoCreado.id]);
+
+  assert(
+    pagoInicial !== undefined && pagoInicial.monto_pagado === abonoInicial,
+    'El abono inicial queda registrado en pagos_creditos',
+    abonoInicial,
+    pagoInicial ? pagoInicial.monto_pagado : undefined
+  );
+}
+
+// =====================================================
 // EJECUTAR TODAS LAS PRUEBAS
 // =====================================================
 
@@ -501,6 +619,7 @@ async function runAllTests() {
     await test_VentaCreditoExigeCliente();
     await test_VentaCreditoDescuentaStock();
     await test_AbonoCreditoActualizaSaldo();
+    await test_AbonoInicialNoSeDescuentaDosVeces();
     await test_AnulacionDevuelveStock();
     await test_ProductoFraccionableCentavosExactos();
     await test_CompraAtomica();
