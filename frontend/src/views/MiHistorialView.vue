@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-slate-800">Mi Historial de Ventas</h1>
+        <h1 class="text-3xl font-bold text-slate-800">Mi Historial de Ventas (v2.0)</h1>
         <p class="text-slate-600 mt-1">Revisa tus ventas del día</p>
       </div>
       <div class="flex items-center space-x-3">
