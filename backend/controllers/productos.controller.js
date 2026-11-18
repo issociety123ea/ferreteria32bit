@@ -164,7 +164,7 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { codigo_sku_interno, nombre, descripcion, categoria_id, unidad_medida, permite_decimales, stock_minimo, precio_costo, precio_venta, activo, imagen_url } = req.body;
+    const { codigo_sku_interno, nombre, descripcion, categoria_id, unidad_medida, permite_decimales, stock_actual, stock_minimo, precio_costo, precio_venta, activo, imagen_url } = req.body;
 
     const existing = await db.prepare('SELECT * FROM productos WHERE id = ?').get(id);
     if (!existing) {
@@ -185,39 +185,101 @@ const update = async (req, res) => {
       finalImageUrl = `/uploads/${req.file.filename}`;
     }
 
-    await db.prepare(`
-      UPDATE productos SET
-        codigo_sku_interno = COALESCE(?, codigo_sku_interno),
-        nombre = COALESCE(?, nombre),
-        descripcion = ?,
-        imagen_url = ?,
-        categoria_id = ?,
-        unidad_medida = COALESCE(?, unidad_medida),
-        permite_decimales = COALESCE(?, permite_decimales),
-        stock_minimo = COALESCE(?, stock_minimo),
-        precio_costo = COALESCE(?, precio_costo),
-        precio_venta = COALESCE(?, precio_venta),
-        activo = COALESCE(?, activo)
-      WHERE id = ?
-    `).run(
-      codigo_sku_interno,
-      nombre,
-      descripcion !== undefined ? descripcion : existing.descripcion,
-      finalImageUrl,
-      categoria_id !== undefined ? categoria_id : existing.categoria_id,
-      unidad_medida,
-      permite_decimales !== undefined ? (permite_decimales ? 1 : 0) : null,
-      stock_minimo,
-      precio_costo,
-      precio_venta,
-      activo !== undefined ? (activo ? 1 : 0) : null,
-      id
-    );
+    // Normalizar categoria_id: FormData envía "" cuando el usuario elige "Sin categoría".
+    // La cadena vacía viola la FK (no existe categoría con id=''), así que la convertimos a NULL.
+    let finalCategoriaId;
+    if (categoria_id === undefined) {
+      finalCategoriaId = existing.categoria_id;
+    } else if (categoria_id === '' || categoria_id === null) {
+      finalCategoriaId = null;
+    } else {
+      finalCategoriaId = categoria_id;
+    }
 
-    // Auditoría
-    await db.prepare(
-      'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, datos_anteriores) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(req.user.id, 'ACTUALIZAR_PRODUCTO', 'INVENTARIO', 'productos', id, JSON.stringify(existing));
+    // stock_actual: si viene en la petición (FormData siempre envía strings, puede ser "" o "0"),
+    // lo normalizamos a número; si no viene (JSON sin el campo), dejamos el stock existente.
+    // multer (multipart/form-data) entrega todos los campos como string.
+    let nuevoStock;
+    if (stock_actual !== undefined && stock_actual !== null && stock_actual !== '') {
+      nuevoStock = Number(stock_actual);
+      if (Number.isNaN(nuevoStock)) {
+        return res.status(400).json({ success: false, message: 'El stock actual debe ser un número válido' });
+      }
+      if (nuevoStock < 0) {
+        return res.status(400).json({ success: false, message: 'El stock actual no puede ser negativo' });
+      }
+    } else {
+      nuevoStock = existing.stock_actual;
+    }
+
+    const stockAnterior = existing.stock_actual;
+    const diferenciaStock = nuevoStock - stockAnterior;
+
+    try {
+      await db.prepare('BEGIN TRANSACTION').run();
+
+      await db.prepare(`
+        UPDATE productos SET
+          codigo_sku_interno = COALESCE(?, codigo_sku_interno),
+          nombre = COALESCE(?, nombre),
+          descripcion = ?,
+          imagen_url = ?,
+          categoria_id = ?,
+          unidad_medida = COALESCE(?, unidad_medida),
+          permite_decimales = COALESCE(?, permite_decimales),
+          stock_actual = ?,
+          stock_minimo = COALESCE(?, stock_minimo),
+          precio_costo = COALESCE(?, precio_costo),
+          precio_venta = COALESCE(?, precio_venta),
+          activo = COALESCE(?, activo)
+        WHERE id = ?
+      `).run(
+        codigo_sku_interno,
+        nombre,
+        descripcion !== undefined ? descripcion : existing.descripcion,
+        finalImageUrl,
+        finalCategoriaId,
+        unidad_medida,
+        permite_decimales !== undefined ? (permite_decimales ? 1 : 0) : null,
+        nuevoStock,
+        stock_minimo,
+        precio_costo,
+        precio_venta,
+        activo !== undefined ? (activo ? 1 : 0) : null,
+        id
+      );
+
+      // Si el stock cambió, registrar el ajuste en el kardex (como lo hace adjustStock),
+      // para que el historial de inventario refleje la edición y no haya un descuadre silencioso.
+      // No se registra nada si la diferencia es 0 (no hubo cambio de stock).
+      if (diferenciaStock !== 0) {
+        const tipoMovimiento = diferenciaStock > 0 ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA';
+        const cantidadAbs = Math.abs(diferenciaStock);
+        await db.prepare(`
+          INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, stock_anterior, stock_nuevo, costo_unitario, referencia_tipo, usuario_id, notas)
+          VALUES (?, ?, ?, ?, ?, ?, 'EDICION_PRODUCTO', ?, ?)
+        `).run(
+          id,
+          tipoMovimiento,
+          cantidadAbs,
+          stockAnterior,
+          nuevoStock,
+          existing.precio_costo || 0,
+          req.user.id,
+          `Ajuste por edición de producto (stock ${stockAnterior} → ${nuevoStock})`
+        );
+      }
+
+      // Auditoría
+      await db.prepare(
+        'INSERT INTO auditoria (usuario_id, accion, modulo, tabla_afectada, registro_id, datos_anteriores) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(req.user.id, 'ACTUALIZAR_PRODUCTO', 'INVENTARIO', 'productos', id, JSON.stringify(existing));
+
+      await db.prepare('COMMIT').run();
+    } catch (error) {
+      await db.prepare('ROLLBACK').run();
+      throw error;
+    }
 
     const producto = await db.prepare('SELECT p.*, c.nombre as categoria_nombre FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id WHERE p.id = ?').get(id);
 

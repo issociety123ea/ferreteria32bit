@@ -436,6 +436,9 @@ onMounted(() => {
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2">Stock Actual</label>
               <input v-model.number="form.stock_actual" type="number" step="0.01" class="input" />
+              <p v-if="modalMode === 'edit'" class="mt-1 text-xs text-amber-600">
+                Cambiar el stock registra un ajuste de inventario en el kardex.
+              </p>
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2">Precio de Costo (Bs.)</label>
